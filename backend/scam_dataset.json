@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "platform": "WhatsApp",
+    "text": "Congratulations! You won 50,000 PKR from Benazir Income Support. Click to claim now!",
+    "url": "http://bisp-free-money-claim.tk/login",
+    "expected_status": "Dangerous"
+  },
+  {
+    "id": 2,
+    "platform": "Facebook",
+    "text": "Alibaba Cloud AI Hackathon Pakistan registration is now open. Learn more on the official site.",
+    "url": "https://banoqabil.org/hackathon",
+    "expected_status": "Safe"
+  },
+  {
+    "id": 3,
+    "platform": "Instagram",
+    "text": "Earn $100 per day by sitting at home. Limited seats left! Register here:",
+    "url": "http://bit.ly/3xX9aQz",
+    "expected_status": "Suspicious"
+  }
+]
