@@ -18,7 +18,7 @@ print("Connecting to Alibaba Cloud Qwen LLM...")
 
 try:
     response = client.chat.completions.create(
-        model="qwen-turbo",
+        model="qwen3.7-plus",
         messages=[
             {"role": "system", "content": "You are a cybersecurity expert analyzing suspicious links and phishing attempts."},
             {"role": "user", "content": "Analyze this message for security risks: 'Congratulations! You won 50,000 PKR from Benazir Income Support. Click to claim now! http://bisp-free-money-claim.tk/login'"}
