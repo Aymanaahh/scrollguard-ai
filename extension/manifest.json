@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ScrollGuard AI",
+  "version": "1.0",
+  "description": "Real-time AI-powered link safety and scam detection",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
