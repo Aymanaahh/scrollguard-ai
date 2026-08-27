@@ -1,23 +1,37 @@
 [
   {
     "id": 1,
-    "platform": "WhatsApp",
-    "text": "Congratulations! You won 50,000 PKR from Benazir Income Support. Click to claim now!",
     "url": "http://bisp-free-money-claim.tk/login",
+    "text": "Congratulations! You won 50,000 PKR from Benazir Income Support. Click to claim now!",
+    "platform": "WhatsApp",
     "expected_status": "Dangerous"
   },
   {
     "id": 2,
-    "platform": "Facebook",
-    "text": "Alibaba Cloud AI Hackathon Pakistan registration is now open. Learn more on the official site.",
-    "url": "https://banoqabil.org/hackathon",
+    "url": "https://www.google.com",
+    "text": "Search the web for news and research updates.",
+    "platform": "Browser",
     "expected_status": "Safe"
   },
   {
     "id": 3,
-    "platform": "Instagram",
-    "text": "Earn $100 per day by sitting at home. Limited seats left! Register here:",
-    "url": "http://bit.ly/3xX9aQz",
-    "expected_status": "Suspicious"
+    "url": "http://bit.ly/free-crypto-giveaway-2026",
+    "text": "Double your Bitcoin instantly! Deposit 0.1 BTC and receive 0.2 BTC back immediately.",
+    "platform": "Twitter",
+    "expected_status": "Dangerous"
+  },
+  {
+    "id": 4,
+    "url": "https://github.com/trending",
+    "text": "Check out the top trending repositories on GitHub today.",
+    "platform": "Browser",
+    "expected_status": "Safe"
+  },
+  {
+    "id": 5,
+    "url": "http://bank-account-verify-urgent-security.com",
+    "text": "Urgent: Your bank account will be suspended in 24 hours. Verify your credentials now.",
+    "platform": "SMS",
+    "expected_status": "Dangerous"
   }
 ]
