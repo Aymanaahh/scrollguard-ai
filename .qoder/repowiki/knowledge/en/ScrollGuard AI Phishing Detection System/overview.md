@@ -1,0 +1,1 @@
+End-to-end phishing and scam detection system pairing a Chrome Manifest V3 extension with a FastAPI backend that classifies URLs via Alibaba Cloud's Qwen LLM.

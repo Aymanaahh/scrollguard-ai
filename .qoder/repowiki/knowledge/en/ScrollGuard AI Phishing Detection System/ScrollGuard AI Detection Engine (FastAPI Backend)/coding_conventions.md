@@ -1,0 +1,4 @@
+- Environment variables are loaded via `load_dotenv()` at module top and required keys are validated immediately with a `RuntimeError` if missing.
+- Pydantic `BaseModel` classes define both request and response schemas, which FastAPI uses for automatic validation and OpenAPI generation.
+- LLM prompts are injected as a fixed `SYSTEM_PROMPT` string that enforces a strict JSON schema, and raw responses are post-processed to strip markdown code fences before `json.loads`.
+- HTTP errors are raised through FastAPI's `HTTPException` with explicit status codes (400 for bad input, 500 for parsing/API failures) rather than returning error dicts.

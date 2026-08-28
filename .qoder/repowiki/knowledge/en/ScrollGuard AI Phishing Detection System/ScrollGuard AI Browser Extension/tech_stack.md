@@ -1,0 +1,1 @@
+Chrome Extension Manifest V3 using `activeTab` and `scripting` permissions; content script runs pure vanilla JS/DOM; popup communicates with a local FastAPI/Uvicorn backend at `127.0.0.1:8000/analyze` over JSON.

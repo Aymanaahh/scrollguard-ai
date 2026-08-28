@@ -1,0 +1,1 @@
+Python 3.10+ with FastAPI/Uvicorn for the backend, Google Chrome/Edge Manifest V3 extension for the frontend, and Alibaba Cloud DashScope (`qwen3.7-plus`) as the shared LLM provider used by both components.

@@ -1,0 +1,2 @@
+- Risk classification output is a strict JSON report with one of three threat levels: Safe, Suspicious, or Dangerous.
+- Environment secrets (notably `DASHSCOPE_API_KEY`) are loaded via Python-Dotenv from a `.env` file placed next to the backend code.

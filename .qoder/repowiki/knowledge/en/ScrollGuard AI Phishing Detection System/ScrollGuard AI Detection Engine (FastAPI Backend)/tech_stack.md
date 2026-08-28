@@ -1,0 +1,1 @@
+FastAPI + Pydantic for request/response modeling; OpenAI Python SDK configured against Alibaba DashScope's OpenAI-compatible endpoint (`qwen3.7-plus`); python-dotenv for secret management; requests used by the evaluation harness.

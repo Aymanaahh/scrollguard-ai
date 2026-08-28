@@ -1,0 +1,1 @@
+Requires a `backend/.env` file containing `DASHSCOPE_API_KEY` before any script can run. Start the server with a FastAPI dev server (e.g., `uvicorn main:app --reload`) on port 8000, then run `python evaluate_engine.py` to score `scam_dataset.json` against the live endpoint, or `python test_qwen.py` to verify Qwen connectivity.

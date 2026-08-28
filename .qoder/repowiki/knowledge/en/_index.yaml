@@ -1,0 +1,38 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-08-28T18:08:34Z"
+modules:
+    "":
+        dir_name: ScrollGuard AI Phishing Detection System
+        title: ScrollGuard AI Phishing Detection System
+        scope:
+            - README.md
+        source_files: []
+        children:
+            - backend
+            - extension
+        depends_on: []
+        related_to: []
+    backend:
+        dir_name: ScrollGuard AI Detection Engine (FastAPI Backend)
+        title: ScrollGuard AI Detection Engine (FastAPI Backend)
+        scope:
+            - backend/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: extension
+    extension:
+        dir_name: ScrollGuard AI Browser Extension
+        title: ScrollGuard AI Browser Extension
+        scope:
+            - extension/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: backend

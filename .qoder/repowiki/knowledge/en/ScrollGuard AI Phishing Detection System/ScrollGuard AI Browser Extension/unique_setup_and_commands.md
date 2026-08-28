@@ -1,0 +1,1 @@
+The popup requires a local backend server running on port 8000 (the code alerts if connection fails); install by loading the `extension/` folder as an unpacked extension in Chrome and starting the Uvicorn server before clicking Scan This Page.

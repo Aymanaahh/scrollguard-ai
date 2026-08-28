@@ -1,0 +1,1 @@
+Start the backend first with `python -m uvicorn main:app --reload --port 8000` from `backend/`, load the `extension/` folder as an unpacked extension in Chrome/Edge developer mode, and run benchmarking via `python evaluate_engine.py` inside `backend/` while the server is live.
