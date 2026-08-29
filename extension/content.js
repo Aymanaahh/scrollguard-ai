@@ -1,13 +1,23 @@
 /**
  * ScrollGuard AI – Content Script
  *
- * Two-layer detection:
- *   1. Fast local heuristic scan (URL patterns + page-text regex).
- *   2. AI-powered analysis via the FastAPI backend, proxied through the
- *      background service worker to avoid CORS / Mixed Content blocks.
+ * Three-layer real-time protection:
  *
- * When either layer flags the page, a fixed warning banner is injected at
- * the top of the DOM.
+ *   1. PAGE-LEVEL SCAN  – on load, the current URL and visible text are
+ *      checked against local heuristic indicators.  The page URL + title are
+ *      also sent to the AI backend via the background service worker.
+ *      If either layer flags the page, a fixed warning banner is injected
+ *      at the top of the DOM.
+ *
+ *   2. SPA LINK SCRAPER – a MutationObserver watches document.body for
+ *      dynamically inserted <a> tags (common in infinite-scroll feeds on
+ *      Twitter / X, Facebook, LinkedIn, etc.).  Each new external link is
+ *      sent to the backend for analysis; if flagged Dangerous or Suspicious
+ *      the link is visually marked inline with a red border, tinted
+ *      background, and a warning badge.
+ *
+ *   3. DEDUPLICATION    – a Set tracks every URL that has already been sent
+ *      to the backend so the API is never spammed with duplicate requests.
  */
 
 (function () {
@@ -105,16 +115,19 @@
   // ── Background service-worker communication ───────────────────────────────
 
   /**
-   * Send the page URL and title to background.js for AI-powered analysis.
+   * Send a URL + text payload to background.js for AI-powered analysis.
    * Returns the backend JSON response, or null if the service worker is
    * unreachable (e.g. extension context invalidated, backend offline).
+   *
+   * Used for both page-level scans (url=pageUrl, text=pageTitle) and
+   * individual link scans (url=href, text=linkText).
    */
-  async function analyzeViaBackground(pageUrl, pageTitle) {
+  async function analyzeViaBackground(url, text) {
     try {
       const result = await chrome.runtime.sendMessage({
         action: "analyzeUrl",
-        url: pageUrl,
-        text: pageTitle,
+        url: url,
+        text: text,
       });
       return result || null;
     } catch (_err) {
@@ -123,7 +136,7 @@
     }
   }
 
-  // ── Banner injection ───────────────────────────────────────────────────────
+  // ── Page-level banner injection ────────────────────────────────────────────
 
   /**
    * Determine a human-readable severity label from the combined results.
@@ -168,9 +181,9 @@
   /**
    * Build and inject the fixed warning banner into the page DOM.
    *
-   * @param {string[]}   urlHits    Matched URL indicators (may be empty).
-   * @param {string[]}   textHits   Matched text indicators (may be empty).
-   * @param {Object|null} aiResult  Backend JSON response, or null.
+   * @param {string[]}    urlHits    Matched URL indicators (may be empty).
+   * @param {string[]}    textHits   Matched text indicators (may be empty).
+   * @param {Object|null} aiResult   Backend JSON response, or null.
    */
   function injectBanner(urlHits, textHits, aiResult) {
     const severityLabel = resolveSeverity(urlHits, textHits, aiResult);
@@ -350,10 +363,213 @@
     observer.observe(document.body, { childList: true });
   }
 
-  // ── Main scan logic ────────────────────────────────────────────────────────
+  // ── Real-time SPA link scraper ─────────────────────────────────────────────
 
   /**
-   * Decide whether the combined results warrant showing the banner.
+   * WeakSet of <a> elements already processed by the observer.  A WeakSet
+   * is used (instead of a Set) so that elements garbage-collected after
+   * leaving the DOM don't leak memory.
+   */
+  const processedAnchors = new WeakSet();
+
+  /**
+   * Deduplication set of URL strings that have already been sent to the
+   * backend for analysis.  Prevents spamming the API with the same href
+   * when it appears in multiple feed posts.
+   */
+  const scannedUrls = new Set();
+
+  /**
+   * Decide whether a link's href is worth sending to the backend.
+   *
+   * Rejects:
+   *   - empty / missing href
+   *   - non-HTTP(S) schemes (javascript:, data:, mailto:, tel:, #anchors)
+   *   - navigation stubs ("#", "!", "/", "?")
+   *   - same-origin links (internal SPA navigation, profile pages, etc.)
+   *
+   * Accepts everything else — including third-party URLs that might be
+   * phishing or scam links embedded in a social-media feed.
+   */
+  function isValidExternalLink(href) {
+    if (!href) return false;
+
+    const trimmed = href.trim();
+
+    // Non-HTTP schemes
+    if (/^(javascript|data|mailto|tel|#|blob|file):/i.test(trimmed)) {
+      return false;
+    }
+
+    // Navigation stubs used by many SPA frameworks
+    if (/^[#!\/?]?$/.test(trimmed)) return false;
+
+    // Must be a parseable HTTP(S) URL
+    let parsed;
+    try {
+      parsed = new URL(trimmed, window.location.href);
+    } catch (_err) {
+      return false;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    // Same-origin → internal navigation (e.g. clicking a profile on Twitter)
+    if (parsed.hostname === window.location.hostname) return false;
+
+    return true;
+  }
+
+  /**
+   * Visually mark a dangerous / suspicious <a> element inline in the feed.
+   *
+   * Applies:
+   *   - 3px solid red border
+   *   - Light-red translucent background
+   *   - An inline warning badge (🚨 [DANGEROUS] or ⚠️ [SUSPICIOUS])
+   *     injected as the link's next sibling.
+   *
+   * Safe to call more than once on the same element — subsequent calls are
+   * no-ops thanks to the data-scrollguard-marked attribute guard.
+   */
+  function markDangerousLink(linkEl, status) {
+    if (linkEl.dataset.scrollguardMarked) return;
+    linkEl.dataset.scrollguardMarked = "true";
+
+    const isDangerous = status === "Dangerous";
+
+    // -- Visual border + background on the link itself
+    linkEl.style.outline = "3px solid " + (isDangerous ? "#dc2626" : "#f59e0b");
+    linkEl.style.outlineOffset = "2px";
+    linkEl.style.backgroundColor = isDangerous
+      ? "rgba(220, 38, 38, 0.10)"
+      : "rgba(245, 158, 11, 0.10)";
+    linkEl.style.borderRadius = "3px";
+
+    // -- Warning badge injected after the link
+    const badge = document.createElement("span");
+    badge.className = "__scrollguard_link_badge__";
+    badge.textContent = isDangerous
+      ? " 🚨 [DANGEROUS]"
+      : " ⚠️ [SUSPICIOUS]";
+
+    Object.assign(badge.style, {
+      display: "inline-block",
+      fontSize: "10px",
+      fontWeight: "700",
+      fontFamily:
+        "'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif",
+      color: isDangerous ? "#991b1b" : "#92400e",
+      backgroundColor: isDangerous ? "#fee2e2" : "#fef3c7",
+      padding: "2px 6px",
+      borderRadius: "4px",
+      marginLeft: "4px",
+      verticalAlign: "middle",
+      lineHeight: "1",
+      letterSpacing: "0.3px",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+    });
+
+    linkEl.insertAdjacentElement("afterend", badge);
+  }
+
+  /**
+   * Send a discovered link's URL + visible text to the background service
+   * worker for AI analysis.  Wraps the call in a 6-second timeout so that
+   * a slow or offline backend never stalls the observer loop.
+   */
+  async function sendLinkForAnalysis(href, linkText) {
+    try {
+      const result = await Promise.race([
+        analyzeViaBackground(href, linkText),
+        new Promise(function (resolve) {
+          setTimeout(function () { resolve(null); }, 6000);
+        }),
+      ]);
+      return result;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  /**
+   * Core observer callback: extract <a> tags from newly added DOM nodes,
+   * filter + deduplicate, and dispatch each one for analysis.
+   *
+   * Each qualifying link is fire-and-forget awaited so that hundreds of
+   * feed links can be processed without blocking the main thread.
+   */
+  function processNewLinks(mutations) {
+    for (const mutation of mutations) {
+      for (const addedNode of mutation.addedNodes) {
+        if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
+
+        // Collect every <a> inside the new subtree (including the node
+        // itself if it happens to be an anchor).
+        const anchors =
+          addedNode.tagName === "A"
+            ? [addedNode]
+            : Array.from(
+                addedNode.querySelectorAll
+                  ? addedNode.querySelectorAll("a[href]")
+                  : []
+              );
+
+        for (const anchor of anchors) {
+          // Skip already-processed elements
+          if (processedAnchors.has(anchor)) continue;
+          processedAnchors.add(anchor);
+
+          const href = anchor.href;
+          if (!isValidExternalLink(href)) continue;
+
+          // Deduplication: skip URLs we've already sent to the backend
+          if (scannedUrls.has(href)) continue;
+          scannedUrls.add(href);
+
+          const linkText =
+            (anchor.innerText || anchor.textContent || "").trim().substring(0, 500);
+
+          // Fire-and-forget analysis — mark the link when the result arrives
+          sendLinkForAnalysis(href, linkText).then(function (result) {
+            if (
+              result &&
+              !result.error &&
+              (result.status === "Dangerous" || result.status === "Suspicious")
+            ) {
+              // Guard: the link may have been removed from the DOM while we
+              // were waiting for the backend response.
+              if (anchor.isConnected) {
+                markDangerousLink(anchor, result.status);
+              }
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // Create and start the MutationObserver.
+  // childList: true  → fires when child nodes are added / removed.
+  // subtree:   true  → watches the entire document tree, not just <body>'s
+  //                    direct children, so deeply nested feed inserts are
+  //                    caught too.
+  const linkObserver = new MutationObserver(processNewLinks);
+
+  function startLinkObserver() {
+    linkObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  // ── Page-level scan logic ──────────────────────────────────────────────────
+
+  /**
+   * Decide whether the combined page-level results warrant showing the
+   * top banner.
    */
   function shouldShowBanner(urlHits, textHits, aiResult) {
     // Local heuristics triggered
@@ -371,7 +587,7 @@
     return false;
   }
 
-  async function scan() {
+  async function scanPage() {
     const pageUrl = window.location.href;
     const pageTitle = document.title || "";
     const pageText = getPageText(5000);
@@ -399,10 +615,20 @@
     }
   }
 
+  // ── Initialization ─────────────────────────────────────────────────────────
+
+  function init() {
+    // Page-level scan (URL + body text against local heuristics + AI)
+    scanPage();
+
+    // Start watching for dynamically inserted links (SPA feed scraping)
+    startLinkObserver();
+  }
+
   // Run when the DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", scan);
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    scan();
+    init();
   }
 })();
