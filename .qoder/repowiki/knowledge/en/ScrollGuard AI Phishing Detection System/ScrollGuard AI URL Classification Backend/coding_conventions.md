@@ -1,0 +1,5 @@
+- Environment variables are loaded via `load_dotenv()` at module top and required keys are validated immediately with a `RuntimeError` if missing.
+- Request and response schemas are defined as Pydantic `BaseModel` classes (`AnalysisRequest`, `AnalysisResponse`, `URLBatch`) and used directly as FastAPI route parameters and `response_model` annotations.
+- LLM prompts are injected through a fixed module-level `SYSTEM_PROMPT` string that enforces a strict JSON schema, and raw model outputs are post-processed by stripping markdown code fences before `json.loads`.
+- HTTP errors are raised through FastAPI's `HTTPException` with explicit status codes (400 for bad input, 500 for parsing/API failures) rather than returning error dictionaries.
+- Each classification path runs `heuristic_scan(url)` first and short-circuits when the result is not `Safe`, reserving the LLM call only for URLs that pass rule-based filtering.

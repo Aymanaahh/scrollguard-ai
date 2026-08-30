@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: ScrollGuard Phishing & Scam Detection System
+title: ScrollGuard AI Phishing Detection System
 scope:
     - README.md
 source_files: []

@@ -1,0 +1,1 @@
+FastAPI service that classifies URLs and text as Safe, Suspicious, or Dangerous using a two-stage pipeline of rule-based heuristics followed by Alibaba Cloud Qwen LLM analysis.

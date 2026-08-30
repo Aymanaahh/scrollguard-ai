@@ -1,1 +1,0 @@
-FastAPI service that calls Alibaba Cloud Qwen to classify URLs and text as Safe, Suspicious, or Dangerous for the ScrollGuard phishing/scam detection system.

@@ -1,1 +1,0 @@
-Load the `extension/` folder as an unpacked extension in Chrome and start the local Uvicorn backend before using either the content-script banner or the popup's Scan This Page feature; the popup alerts if the backend connection fails.

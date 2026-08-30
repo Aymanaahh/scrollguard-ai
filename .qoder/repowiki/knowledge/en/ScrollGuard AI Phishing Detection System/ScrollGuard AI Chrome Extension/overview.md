@@ -1,0 +1,1 @@
+Chrome Manifest V3 extension that scans page links for scam indicators via a local FastAPI backend, highlighting risky URLs inline and exposing an on-demand popup scanner.
