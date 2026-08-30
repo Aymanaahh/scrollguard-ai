@@ -1,23 +1,52 @@
 /**
  * ScrollGuard AI – Popup Script
  *
- * Allows the user to manually trigger a scan of the current page URL.
- * Sends the URL to background.js → FastAPI backend and renders the
- * results into the popup UI.
+ * Displays the auto-scan status dashboard and live statistics.
+ * Also provides a manual "Scan Active Tab" fallback button that sends
+ * the current tab URL to the backend for on-demand analysis.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
   const urlBox = document.getElementById("currentUrl");
   const scanBtn = document.getElementById("scanBtn");
   const resultsDiv = document.getElementById("results");
+  const statScanned = document.getElementById("statScanned");
+  const statFlagged = document.getElementById("statFlagged");
+  const statStatus = document.getElementById("statStatus");
 
-  // Display the active tab URL
+  // ── Display the active tab URL ──────────────────────────────────────────
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs[0];
-    urlBox.textContent = tab && tab.url ? tab.url : "Unable to read URL";
+    if (tab && tab.url) {
+      urlBox.textContent = tab.url;
+    } else {
+      urlBox.textContent = "Unable to read URL (browser internal page)";
+    }
   });
 
-  // Scan button click handler
+  // ── Retrieve scan stats from chrome.storage (set by content.js) ────────
+  chrome.storage.local.get(
+    ["sg_linksScanned", "sg_linksFlagged"],
+    (data) => {
+      const scanned = data.sg_linksScanned || 0;
+      const flagged = data.sg_linksFlagged || 0;
+
+      statScanned.textContent = scanned;
+      statFlagged.textContent = flagged;
+      statStatus.textContent = scanned > 0 ? "Active" : "Waiting";
+    }
+  );
+
+  // ── Listen for live stat updates from content.js ───────────────────────
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === "updateStats") {
+      statScanned.textContent = message.scanned || 0;
+      statFlagged.textContent = message.flagged || 0;
+      statStatus.textContent = (message.scanned || 0) > 0 ? "Active" : "Waiting";
+    }
+  });
+
+  // ── Manual "Scan Active Tab" fallback ──────────────────────────────────
   scanBtn.addEventListener("click", async () => {
     const [tab] = await chrome.tabs.query({
       active: true,
@@ -31,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Disable button + show spinner
     scanBtn.disabled = true;
-    scanBtn.textContent = "Analyzing…";
+    scanBtn.textContent = "Analyzing\u2026";
     resultsDiv.replaceChildren(buildSpinner());
 
     try {
@@ -61,11 +90,11 @@ document.addEventListener("DOMContentLoaded", () => {
       showError("Extension error: " + err.message);
     } finally {
       scanBtn.disabled = false;
-      scanBtn.textContent = "Scan Current Page";
+      scanBtn.textContent = "Scan Active Tab";
     }
   });
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────
 
   function showError(message) {
     resultsDiv.replaceChildren();
@@ -84,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wrap.appendChild(spinner);
 
     wrap.appendChild(document.createElement("br"));
-    wrap.appendChild(document.createTextNode("Scanning…"));
+    wrap.appendChild(document.createTextNode("Scanning\u2026"));
     return wrap;
   }
 
@@ -129,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Array.isArray(result.reasons) && result.reasons.length > 0) {
       const reasons = document.createElement("div");
       reasons.className = "reasons";
-      reasons.textContent = result.reasons.join(" · ");
+      reasons.textContent = result.reasons.join(" \u00B7 ");
       card.appendChild(reasons);
     }
 

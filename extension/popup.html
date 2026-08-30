@@ -7,7 +7,7 @@
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
-      width: 300px;
+      width: 320px;
       margin: 0;
       padding: 0;
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont,
@@ -62,7 +62,71 @@
       line-height: 1.4;
     }
 
-    /* ── Scan button ────────────────────────────── */
+    /* ── Auto-scan status banner ────────────────── */
+    .status-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .status-banner .pulse-dot {
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      50%      { opacity: 0.7; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    }
+    .status-banner .status-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: #065f46;
+      line-height: 1.35;
+    }
+    .status-banner .status-sub {
+      font-size: 10px;
+      font-weight: 400;
+      color: #047857;
+      margin-top: 2px;
+    }
+
+    /* ── Stats row ──────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-chip {
+      flex: 1;
+      text-align: center;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 6px;
+    }
+    .stat-chip .stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .stat-chip .stat-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 2px;
+    }
+
+    /* ── Manual scan fallback button ────────────── */
     .scan-btn {
       width: 100%;
       padding: 10px;
@@ -75,6 +139,7 @@
       cursor: pointer;
       transition: background 0.2s, transform 0.1s;
       letter-spacing: 0.3px;
+      margin-bottom: 12px;
     }
     .scan-btn:hover:not(:disabled) {
       background: #1d4ed8;
@@ -89,7 +154,7 @@
 
     /* ── Results panel ──────────────────────────── */
     #results {
-      margin-top: 14px;
+      margin-bottom: 10px;
     }
 
     .result-card {
@@ -103,7 +168,6 @@
     .result-card:last-child {
       margin-bottom: 0;
     }
-
     .result-url {
       font-size: 11px;
       word-break: break-all;
@@ -111,14 +175,12 @@
       margin-bottom: 8px;
       line-height: 1.3;
     }
-
     .status-row {
       display: flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 6px;
     }
-
     .status-badge {
       display: inline-block;
       font-size: 11px;
@@ -132,20 +194,17 @@
     .status-badge.suspicious { background: #fef9c3; color: #854d0e; }
     .status-badge.dangerous  { background: #fee2e2; color: #991b1b; }
     .status-badge.error      { background: #f1f5f9; color: #475569; }
-
     .score-label {
       font-size: 11px;
       font-weight: 600;
       color: #475569;
     }
-
     .explanation {
       font-size: 12px;
       color: #334155;
       line-height: 1.45;
       margin-bottom: 4px;
     }
-
     .reasons {
       font-size: 11px;
       color: #64748b;
@@ -182,21 +241,93 @@
       border-radius: 6px;
       line-height: 1.4;
     }
+
+    /* ── Info section ───────────────────────────── */
+    .info-section {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .info-section .info-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 6px;
+    }
+    .info-section .info-text {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.45;
+    }
+
+    /* ── Footer ─────────────────────────────────── */
+    .footer {
+      text-align: center;
+      padding: 8px 0 2px;
+      font-size: 10px;
+      color: #94a3b8;
+    }
   </style>
 </head>
 <body>
   <!-- Header -->
   <div class="header">
-    <span class="shield">🛡️</span>
+    <span class="shield">&#x1F6E1;&#xFE0F;</span>
     <span class="title">ScrollGuard AI</span>
     <span class="badge">Team Raven</span>
   </div>
 
   <!-- Content -->
   <div class="content">
-    <div class="url-box" id="currentUrl">Fetching tab URL…</div>
-    <button class="scan-btn" id="scanBtn">Scan Current Page</button>
+    <div class="url-box" id="currentUrl">Fetching tab URL...</div>
+
+    <!-- Auto-scan status banner -->
+    <div class="status-banner" id="statusBanner">
+      <div class="pulse-dot"></div>
+      <div>
+        <div class="status-text">&#x1F6E1;&#xFE0F; ScrollGuard Active: Auto-scanning links in background</div>
+        <div class="status-sub">All links are monitored in real-time</div>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-value" id="statScanned">--</div>
+        <div class="stat-label">Links Scanned</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-value" id="statFlagged">--</div>
+        <div class="stat-label">Flagged</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-value" id="statStatus">Active</div>
+        <div class="stat-label">Status</div>
+      </div>
+    </div>
+
+    <!-- Manual scan fallback -->
+    <button class="scan-btn" id="scanBtn">Scan Active Tab</button>
     <div id="results"></div>
+
+    <!-- How it works -->
+    <div class="info-section">
+      <div class="info-title">How It Works</div>
+      <div class="info-text">
+        ScrollGuard AI automatically scans every link on each page you visit.
+        A MutationObserver detects dynamically injected links (e.g. infinite scroll)
+        and flags them inline. Click any
+        <strong style="color:#dc2626">red</strong> or
+        <strong style="color:#d97706">amber</strong> badge for full AI analysis details.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">ScrollGuard AI v1.0 &middot; Powered by Qwen LLM</div>
   </div>
 
   <script src="popup.js"></script>
