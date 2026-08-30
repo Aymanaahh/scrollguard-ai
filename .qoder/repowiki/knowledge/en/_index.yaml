@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: main
 nodes_managed: true
-exported_at: "2026-08-28T18:08:34Z"
+exported_at: "2026-08-29T18:48:19Z"
 modules:
     "":
-        dir_name: ScrollGuard AI Phishing Detection System
-        title: ScrollGuard AI Phishing Detection System
+        dir_name: ScrollGuard Phishing & Scam Detection System
+        title: ScrollGuard Phishing & Scam Detection System
         scope:
             - README.md
         source_files: []
@@ -27,8 +27,8 @@ modules:
         related_to:
             - path: extension
     extension:
-        dir_name: ScrollGuard AI Browser Extension
-        title: ScrollGuard AI Browser Extension
+        dir_name: ScrollGuard AI Chrome Extension
+        title: ScrollGuard AI Chrome Extension
         scope:
             - extension/
         source_files: []

@@ -1,0 +1,1 @@
+Chrome Extension Manifest V3 with `activeTab` and `scripting` permissions plus `host_permissions` for `http://127.0.0.1:8000/*`; pure vanilla JavaScript/DOM with no frameworks; communicates with an external FastAPI/Uvicorn server over JSON.

@@ -1,0 +1,7 @@
+- Heuristic detection rules are stored as static arrays mixing plain strings and RegExp objects, iterated with `for...of` loops that push matched indicator sources back to the caller.
+- DOM injection uses `Object.assign(element.style, {...})` to apply inline styles, keeping banners and badges self-contained without external stylesheets.
+- Banner elements use the unique sentinel ID `__scrollguard_banner__` checked at startup to prevent double-injection when the content script executes more than once.
+- Popup UI state is toggled by setting `display: none/block` on the result card and disabling/enabling the scan button around async operations.
+- Content script logic is wrapped in an IIFE with `'use strict'` to avoid leaking variables into the page scope.
+- Backend communication from the content script goes through `chrome.runtime.sendMessage` to the background service worker to bypass CORS/Mixed Content restrictions, while the popup calls the backend directly.
+- Long-running backend calls are guarded with `Promise.race` against a 6-second timeout so a slow or offline backend never blocks the observer loop or page scan.

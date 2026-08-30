@@ -1,4 +1,0 @@
-- Heuristic detection rules are kept as static arrays of plain strings or RegExp objects and iterated with `for...of` loops returning matched indicator sources.
-- DOM injection uses `Object.assign(element.style, {...})` for inline styling rather than external stylesheets, keeping the banner self-contained.
-- Banner elements are guarded by a unique sentinel ID (`__scrollguard_banner__`) checked at startup to prevent double-injection when the content script runs multiple times.
-- Popup UI state is toggled by setting `display: none/block` on the result card and disabling/enabling the scan button around async operations.

@@ -1,1 +1,0 @@
-Chrome Manifest V3 extension that scans visited pages for scam indicators and offers on-demand risk analysis via a local backend server.
