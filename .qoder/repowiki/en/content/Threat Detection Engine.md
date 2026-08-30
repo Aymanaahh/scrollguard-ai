@@ -14,12 +14,13 @@
 
 ## Update Summary
 **Changes Made**
-- Removed comprehensive three-layer detection system documentation (Layer 1 local heuristic scanning, Layer 2 AI-powered analysis via background service worker, Layer 3 real-time SPA link monitoring)
-- Updated to reflect simplified content script with basic DOM queries for link extraction
-- Simplified background service worker architecture focused on batch link analysis
-- Streamlined backend with heuristic scanning as primary detection mechanism
-- Removed MutationObserver-based SPA monitoring and complex visual feedback systems
-- Updated performance considerations to reflect simplified architecture
+- Updated Heuristic Scanning Engine section to reflect comprehensive rule-based detection enhancements
+- Added detailed documentation for sophisticated TLD detection patterns (.tk, .ml, .ga, .cf, .gq, .xyz, .top, .buzz, .click, .icu, .cam)
+- Enhanced URL shortener service detection with expanded list of known services
+- Updated typosquatting detection for known brands (Google, PayPal, Amazon, Facebook, Apple, Microsoft)
+- Refined keyword-based scam detection with comprehensive path and domain keyword lists
+- Updated risk scoring algorithm with weighted scoring for various threat indicators
+- Enhanced visual feedback system with improved inline styling and badge integration
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -81,7 +82,7 @@ API --> |"AI analysis if needed"| LLM
 ## Core Components
 - **Simplified Content Script**: Basic DOM query functionality to extract all visible links from web pages using `document.querySelectorAll("a")`
 - **Streamlined Background Service Worker**: Handles batch link analysis requests and communicates with backend API
-- **Heuristic Scanning Engine**: Rule-based detection system identifying suspicious patterns in URLs including free TLDs, typosquatting, shortened URLs, and scam keywords
+- **Enhanced Heuristic Scanning Engine**: Comprehensive rule-based detection system identifying suspicious patterns in URLs including sophisticated TLD detection, typosquatting, shortened URLs, and scam keywords
 - **AI-Powered Analysis Backend**: Integrates heuristic results with advanced AI analysis through qwen3.7-plus model for comprehensive threat assessment
 - **Popup Interface**: Manual scanning capability for individual page URLs
 
@@ -144,10 +145,10 @@ The content script provides basic link extraction functionality using straightfo
 - Filters for valid HTTP(S) links only
 - Sends collected links to background service worker for analysis
 
-**Visual Feedback System**:
-- Applies inline styling directly to detected links
-- Red borders for Dangerous links, orange for Suspicious, no border for Safe
-- Tooltip integration showing risk assessment details
+**Enhanced Visual Feedback System**:
+- Applies inline styling directly to detected links with sophisticated visual indicators
+- Red borders with 🚨 badges for Dangerous links, orange borders with ⚠️ badges for Suspicious links
+- Tooltip integration showing risk assessment details with color-coded status
 - Simple and effective visual indicators without complex DOM manipulation
 
 ```mermaid
@@ -205,42 +206,55 @@ SendResponse --> End(["Complete"])
 **Section sources**
 - [background.js:17-44](file://extension/background.js#L17-L44)
 
-### Heuristic Scanning Engine
-The heuristic engine provides immediate threat detection using rule-based analysis:
+### Enhanced Heuristic Scanning Engine
+The heuristic engine provides immediate threat detection using comprehensive rule-based analysis:
 
-**Detection Rules**:
-- **Free TLD Detection**: Identifies domains ending in `.tk`, `.ml`, `.ga`, `.cf`, `.gq` commonly used in scams
-- **Typosquatting Patterns**: Detects domains with repeated characters or deceptive patterns like `0o`, `1l`, or hyphens
-- **Shortened URL Recognition**: Flags known URL shortening services (bit.ly, tinyurl, t.co)
-- **Scam Keyword Analysis**: Searches for suspicious keywords like "claim", "win", "free", "bonus", "verify", "urgent", "login"
-- **Security Protocol Checks**: Identifies missing HTTPS encryption
+**Updated Detection Rules**:
+- **Sophisticated TLD Detection**: Identifies domains ending in `.tk`, `.ml`, `.ga`, `.cf`, `.gq`, `.xyz`, `.top`, `.buzz`, `.click`, `.icu`, `.cam` commonly used in scams
+- **URL Shortener Service Detection**: Flags known URL shortening services including bit.ly, tinyurl.com, t.co, ow.ly, shorturl.at, goo.gl, is.gd, buff.ly, rebrand.ly
+- **Typosquatting Pattern Detection**: Detects domains with deceptive patterns mimicking known brands like Google (g00gl), PayPal (paypa1), Amazon (amaz0n), Facebook (faceb00k), Apple (app1e), Microsoft (mircosoft)
+- **Comprehensive Keyword Analysis**: Searches for suspicious keywords in both URL paths and domain names including "claim", "winner", "free-money", "giveaway", "bonus", "verify-account", "urgent-security", "login-secure", "confirm-identity", "suspended-account", "double-bitcoin", "free-gift"
+- **Advanced Security Protocol Checks**: Identifies missing HTTPS encryption and unusual subdomain nesting patterns
+- **Hyphen-heavy Domain Detection**: Flags domains with excessive hyphens (3+ hyphens) commonly used in phishing attacks
 
-**Risk Scoring Algorithm**:
-- Assigns weighted scores to different threat indicators
-- Free TLDs: +40 points
-- Typosquatting patterns: +25 points  
-- Shortened URLs: +20 points
-- Scam keywords: +30 points
-- Missing HTTPS: +15 points
-- Final classification based on cumulative score thresholds
+**Refined Risk Scoring Algorithm**:
+- Assigns weighted scores to different threat indicators based on severity:
+  - Free/suspicious TLDs: +40 points
+  - Typosquatting patterns: +35 points
+  - Scam keywords in URL path: +30 points
+  - Scam keywords in domain name: +25 points
+  - URL shortener services: +20 points
+  - Hyphen-heavy domains: +20 points
+  - Excessive subdomain depth: +15 points
+  - Missing HTTPS: +10 points
+- Final classification based on cumulative score thresholds:
+  - Dangerous: Score ≥ 70 points
+  - Suspicious: Score ≥ 30 points
+  - Safe: Score < 30 points
 
 ```mermaid
 flowchart TD
 Start(["URL Input"]) --> ParseDomain["Parse domain and extract components"]
-ParseDomain --> CheckTLD{"Check free TLDs"}
+ParseDomain --> CheckTLD{"Check suspicious TLDs"}
 CheckTLD --> |Yes| ScoreTLD["+40 points"]
-CheckTLD --> |No| CheckTypos{"Check typosquatting"}
-ScoreTLD --> CheckTypos
-CheckTypos --> |Yes| ScoreTypos["+25 points"]
-CheckTypos --> |No| CheckShortener{"Check shortened URLs"}
-ScoreTypos --> CheckShortener
+CheckTLD --> |No| CheckShortener{"Check URL shorteners"}
+ScoreTLD --> CheckShortener
 CheckShortener --> |Yes| ScoreShortener["+20 points"]
-CheckShortener --> |No| CheckKeywords{"Check scam keywords"}
-ScoreShortener --> CheckKeywords
-CheckKeywords --> |Yes| ScoreKeywords["+30 points"]
-CheckKeywords --> |No| CheckHTTPS{"Check HTTPS"}
-ScoreKeywords --> CheckHTTPS
-CheckHTTPS --> |No| ScoreHTTPS["+15 points"]
+CheckShortener --> |No| CheckTypos{"Check typosquatting"}
+ScoreShortener --> CheckTypos
+CheckTypos --> |Yes| ScoreTypos["+35 points"]
+CheckTypos --> |No| CheckKeywords{"Check scam keywords"}
+ScoreTypos --> CheckKeywords
+CheckKeywords --> |Yes| ScoreKeywords["+30/+25 points"]
+CheckKeywords --> |No| CheckHyphens{"Check hyphen count"}
+ScoreKeywords --> CheckHyphens
+CheckHyphens --> |Yes| ScoreHyphens["+20 points"]
+CheckHyphens --> |No| CheckSubdomains{"Check subdomain depth"}
+ScoreHyphens --> CheckSubdomains
+CheckSubdomains --> |Yes| ScoreSubdomains["+15 points"]
+CheckSubdomains --> |No| CheckHTTPS{"Check HTTPS"}
+ScoreSubdomains --> CheckHTTPS
+CheckHTTPS --> |No| ScoreHTTPS["+10 points"]
 CheckHTTPS --> |Yes| Classify["Classify based on total score"]
 ScoreHTTPS --> Classify
 Classify --> Dangerous{"Score >= 70?"}
@@ -251,10 +265,10 @@ Classify --> |No| SafeStatus["Safe"]
 ```
 
 **Diagram sources**
-- [heuristics.py:4-48](file://backend/heuristics.py#L4-L48)
+- [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 **Section sources**
-- [heuristics.py:4-48](file://backend/heuristics.py#L4-L48)
+- [heuristics.py:4-110](file://backend/heuristics.py#L4-L110)
 
 ### AI-Powered Analysis Integration
 The backend integrates heuristic results with advanced AI analysis:
@@ -265,16 +279,17 @@ The backend integrates heuristic results with advanced AI analysis:
 - Combines heuristic findings with AI insights for comprehensive assessment
 - Maintains fast response times by leveraging quick heuristic checks
 
-**Prompt Engineering Strategy**:
-- System prompt defines ScrollGuard AI role as cybersecurity expert
-- Structured output schema ensures consistent JSON responses
-- Clear status definitions guide AI decision-making
+**Enhanced Prompt Engineering Strategy**:
+- System prompt defines ScrollGuard AI role as cybersecurity expert specializing in online scams, phishing links, and fake giveaways targeting social media users
+- Structured output schema ensures consistent JSON responses with status, score, explanation, and reasons fields
+- Clear status definitions guide AI decision-making with specific criteria for Safe (0-25), Suspicious (26-69), and Dangerous (70-100) classifications
 - Platform context provided for more accurate threat assessment
 
-**Error Handling and Fallbacks**:
-- Graceful handling of AI service failures
-- Consistent error response format
-- Fallback to heuristic-only results when AI unavailable
+**Robust Error Handling and Fallbacks**:
+- Graceful handling of AI service failures with proper exception management
+- Consistent error response format across all failure scenarios
+- Fallback to heuristic-only results when AI unavailable or fails to parse responses
+- Markdown fence stripping for LLM responses that include ```json wrappers
 
 ```mermaid
 classDiagram
@@ -321,34 +336,35 @@ FastAPIApp --> OpenAIClient : "calls model"
 ### Popup Interface for Manual Scanning
 The popup provides manual scanning capabilities for individual page URLs:
 
-**User Interaction Flow**:
-- Click "Scan Current Page" button to initiate analysis
+**Enhanced User Interaction Flow**:
+- Click "Scan Current Page" button to initiate analysis with loading states
 - Retrieves active tab URL via Chrome extension API
 - Sends single URL to background service worker for processing
-- Displays results with color-coded status indicators
+- Displays results with color-coded status indicators and detailed explanations
 
-**Result Display**:
-- Color-coded text output (green for Safe, orange for Suspicious, red for Dangerous)
-- Risk score display alongside status information
-- Clean, minimal interface focused on essential information
+**Improved Result Display**:
+- Color-coded text output with styled badges (green for Safe, orange for Suspicious, red for Dangerous)
+- Risk score display alongside status information with formatted labels
+- Clean, minimal interface focused on essential information with responsive design
+- Loading spinner during analysis and error state handling
 
 **Section sources**
-- [popup.js:7-36](file://extension/popup.js#L7-L36)
-- [popup.html:39-46](file://extension/popup.html#L39-L46)
+- [popup.js:7-139](file://extension/popup.js#L7-L139)
+- [popup.html:187-205](file://extension/popup.html#L187-L205)
 
 ## Dependency Analysis
 The simplified architecture maintains essential dependencies while reducing complexity:
 
 - **Extension Dependencies**:
   - manifest.json for permissions and service worker registration
-  - content.js for basic DOM link extraction
+  - content.js for basic DOM link extraction with enhanced visual feedback
   - background.js for backend communication and batch processing
-  - popup.js for manual scanning interface
+  - popup.js for manual scanning interface with improved UI
 - **Backend Dependencies**:
   - FastAPI and CORS middleware for request handling
-  - OpenAI client configured for DashScope endpoint
+  - OpenAI client configured for DashScope endpoint with rate limiting
   - Environment variable DASHSCOPE_API_KEY for authentication
-  - heuristics.py for rule-based threat detection
+  - heuristics.py for comprehensive rule-based threat detection
 - **Communication Dependencies**:
   - chrome.runtime API for service worker messaging
   - fetch API for HTTP requests in privileged context
@@ -380,32 +396,34 @@ TEST["test_scan.py"] --> API
 ## Performance Considerations
 The simplified architecture optimizes performance through strategic design choices:
 
-**Content Script Efficiency**:
-- Uses efficient DOM queries with `document.querySelectorAll("a")`
-- Minimal JavaScript overhead with simple filtering logic
-- Throttled scroll event handling prevents excessive processing
-- Lightweight inline styling for visual feedback
+**Enhanced Content Script Efficiency**:
+- Uses efficient DOM queries with `document.querySelectorAll("a")` and WeakSet for memory-efficient element tracking
+- Minimal JavaScript overhead with simple filtering logic and URL deduplication
+- Throttled MutationObserver with debouncing at 300ms to prevent excessive processing
+- Lightweight inline styling for visual feedback with idempotent marking
 
-**Background Service Worker Optimization**:
+**Optimized Background Service Worker**:
 - Batch processing reduces multiple API calls to single requests
 - Efficient error handling prevents cascading failures
 - Asynchronous message handling maintains responsiveness
 - Simple request/response pattern minimizes overhead
 
-**Backend Performance**:
-- Heuristic scanning provides immediate results without AI latency
-- Conditional AI analysis only runs when heuristic scan passes
-- Efficient URL parsing and pattern matching algorithms
+**Enhanced Backend Performance**:
+- Comprehensive heuristic scanning provides immediate results without AI latency
+- Conditional AI analysis only runs when heuristic scan passes safe threshold
+- Efficient URL parsing and pattern matching algorithms with regex optimization
 - Structured error handling prevents resource leaks
+- Rate limiting with semaphore for concurrent AI calls (max 5 concurrent)
 
 **Network Optimization**:
 - Single endpoint `/scan_links` handles batch requests efficiently
 - Background service worker executes requests in privileged context
 - Minimal payload size with essential data transmission
-- Timeout handling prevents hanging connections
+- Timeout handling prevents hanging connections (30-second timeout)
 
 **Caching Strategies**:
-- No client-side caching implemented; consider adding localStorage for repeated URL analyses
+- Client-side URL deduplication using Set to avoid redundant analyses
+- No persistent caching implemented; consider adding localStorage for repeated URL analyses
 - Backend could implement response caching for identical requests
 - Heuristic results are deterministic and could be cached server-side
 
@@ -413,7 +431,7 @@ The simplified architecture optimizes performance through strategic design choic
 - Graceful degradation when background service worker is unavailable
 - Local pattern matching continues to work even if AI analysis fails
 - Error states handled throughout the communication chain
-- Simple error messages provide user feedback
+- Simple error messages provide user feedback with descriptive error states
 
 **Section sources**
 - [content.js:50-53](file://extension/content.js#L50-L53)
@@ -424,35 +442,41 @@ The simplified architecture optimizes performance through strategic design choic
 ## Troubleshooting Guide
 Common issues and solutions for the simplified architecture:
 
-**Content Script Issues**:
+**Enhanced Content Script Issues**:
 - **Links Not Being Extracted**: Verify DOM contains anchor elements and check console for errors
-- **Visual Styling Not Applied**: Ensure CSS selectors match actual link elements
-- **Scroll Events Not Triggering**: Check event listener registration and throttling logic
+- **Visual Styling Not Applied**: Ensure CSS selectors match actual link elements and check for existing scrollguard markings
+- **MutationObserver Not Working**: Check observer configuration and debouncing logic
+- **Duplicate Link Processing**: Verify WeakSet and Set usage for proper deduplication
 
 **Background Service Worker Problems**:
 - **Messages Not Received**: Verify chrome.runtime.onMessage listener is properly registered
 - **Backend Communication Failures**: Check BACKEND_URL configuration and network connectivity
 - **Batch Processing Errors**: Validate URL array format and error handling
+- **Timeout Issues**: Adjust timeout values if backend is slow to respond
 
 **Backend Connectivity Issues**:
 - **Missing API Key**: Set DASHSCOPE_API_KEY environment variable before starting backend
 - **Server Not Running**: Start FastAPI server using uvicorn as documented
 - **Connection Timeouts**: Verify network access and firewall settings
+- **Rate Limiting**: Monitor concurrent AI call limits and adjust semaphore settings
 
-**Heuristic Scanning Issues**:
-- **False Positives/Negatives**: Review rule thresholds in heuristics.py
-- **Pattern Matching Errors**: Check regex patterns and string comparison logic
-- **Score Calculation Issues**: Verify point assignments and threshold values
+**Enhanced Heuristic Scanning Issues**:
+- **False Positives/Negatives**: Review rule thresholds and keyword lists in heuristics.py
+- **Pattern Matching Errors**: Check regex patterns and string comparison logic for typosquatting detection
+- **Score Calculation Issues**: Verify point assignments and threshold values for new detection rules
+- **TLD Detection Problems**: Ensure suspicious TLD list is up-to-date with current abuse patterns
 
 **Popup Functionality**:
 - **Button Not Working**: Check event listener attachment and DOM element existence
 - **Results Not Displaying**: Verify message passing and result formatting
 - **Permission Errors**: Ensure proper manifest permissions are set
+- **Loading States**: Check spinner implementation and button disable logic
 
 **Evaluation and Testing**:
 - **Test Script Failures**: Verify backend is running and accessible
 - **Dataset Issues**: Check scam_dataset.json format and accessibility
 - **API Endpoint Changes**: Update test configurations if backend changes
+- **Performance Testing**: Monitor concurrent AI call limits and response times
 
 **Section sources**
 - [content.js:18-41](file://extension/content.js#L18-L41)
@@ -462,27 +486,35 @@ Common issues and solutions for the simplified architecture:
 - [popup.js:7-36](file://extension/popup.js#L7-L36)
 
 ## Conclusion
-ScrollGuard AI delivers a streamlined threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis. The simplified architecture focuses on essential functionality while maintaining effectiveness in detecting suspicious URLs through integrated heuristic scanning and AI-powered analysis. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
+ScrollGuard AI delivers a streamlined threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis. The enhanced heuristic scanning engine provides sophisticated rule-based detection with comprehensive TLD monitoring, typosquatting protection, and keyword analysis. The simplified architecture focuses on essential functionality while maintaining effectiveness in detecting suspicious URLs through integrated heuristic scanning and AI-powered analysis. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
 
 ## Appendices
 
 ### Example Workflows
 **Automatic Link Analysis Workflow**:
-- On page load, content script extracts all visible links using DOM queries
-- Links are sent to background service worker for batch processing
-- Backend runs heuristic scan first for immediate threat identification
-- AI analysis performed only when heuristic scan returns safe results
-- Results returned with inline visual indicators applied to links
+- On page load, content script extracts all visible links using DOM queries with WeakSet deduplication
+- Links are sent to background service worker for batch processing with timeout handling
+- Backend runs comprehensive heuristic scan first for immediate threat identification
+- AI analysis performed only when heuristic scan returns safe results with rate limiting
+- Results returned with enhanced inline visual indicators applied to links
 
 **Manual Popup Analysis Workflow**:
-- User clicks "Scan Current Page" button in popup
+- User clicks "Scan Current Page" button in popup with loading state management
 - Popup retrieves active tab URL and sends to background service worker
-- Background service worker processes request through backend API
-- Results displayed with color-coded status indicators
-- Risk scores and explanations provided for each analyzed URL
+- Background service worker processes request through backend API with error handling
+- Results displayed with color-coded status indicators and detailed explanations
+- Risk scores and explanations provided for each analyzed URL with formatted presentation
+
+**Enhanced Heuristic Analysis Workflow**:
+- URL parsed and components extracted (domain, path, query)
+- Multiple detection rules applied in sequence: TLD check, shortener detection, typosquatting analysis, keyword scanning
+- Weighted scoring system calculates cumulative risk score
+- Classification determined by threshold-based scoring (Safe < 30, Suspicious 30-69, Dangerous ≥ 70)
+- Detailed reasons provided for each detected threat indicator
 
 **Section sources**
 - [content.js:12-43](file://extension/content.js#L12-L43)
 - [background.js:39-44](file://extension/background.js#L39-L44)
-- [popup.js:7-36](file://extension/popup.js#L7-L36)
+- [popup.js:7-139](file://extension/popup.js#L7-L139)
 - [main.py:110-149](file://backend/main.py#L110-L149)
+- [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)

@@ -129,7 +129,7 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
 
         try:
             completion = await client.chat.completions.create(
-                model="qwen3.7-plus",
+                model="qwen-max",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
@@ -206,3 +206,17 @@ async def scan_links(batch: URLBatch):
         for url in batch.urls
     ]
     return await asyncio.gather(*tasks)
+
+
+# ── Uvicorn entry point (cloud & local) ─────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=os.getenv("ENV", "production") != "production",
+    )

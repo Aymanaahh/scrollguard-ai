@@ -8,7 +8,29 @@
  * running on HTTPS pages.
  */
 
-const BACKEND_URL = "http://127.0.0.1:8000/scan_links";
+/**
+ * Backend URL configuration.
+ *
+ * Priority:
+ *   1. chrome.storage.local value set by the user (key: "sg_backendUrl")
+ *   2. Default localhost URL for local development
+ *
+ * To point the extension at a cloud-deployed backend, open the browser
+ * console on the service-worker page and run:
+ *   chrome.storage.local.set({ sg_backendUrl: "https://your-app.onrender.com/scan_links" })
+ */
+const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000/scan_links";
+
+/**
+ * Resolve the backend URL from chrome.storage or fall back to default.
+ */
+async function getBackendUrl() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("sg_backendUrl", (data) => {
+      resolve(data.sg_backendUrl || DEFAULT_BACKEND_URL);
+    });
+  });
+}
 
 /**
  * Send array of URLs to backend for AI analysis.
@@ -16,7 +38,9 @@ const BACKEND_URL = "http://127.0.0.1:8000/scan_links";
  */
 async function analyzeLinksBatch(links) {
   try {
-    const response = await fetch(BACKEND_URL, {
+    const backendUrl = await getBackendUrl();
+
+    const response = await fetch(backendUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ urls: links }),

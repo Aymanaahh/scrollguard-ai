@@ -1,4 +1,5 @@
 - Cross-context communication uses `chrome.runtime.sendMessage` with a typed `action` field (e.g. `scanPageLinks`) so the background service worker can dispatch based on message shape.
 - Backend calls from the background service worker wrap `fetch` in try/catch and return a uniform `{ error }` object when the response is non-OK or throws, letting callers branch on `results.error`.
-- Inline DOM feedback is applied directly via `element.style.*` properties (e.g. `borderBottom`) rather than external stylesheets, keeping visual warnings self-contained within the page context.
+- Inline DOM feedback is applied directly via `element.style.*` properties and dynamically created elements rather than external stylesheets, keeping visual warnings self-contained within the page context.
 - User-triggered actions disable or clear UI state before async work and populate result containers only after receiving a successful backend response.
+- Link scanning deduplicates URLs with a module-level `Set` (`scannedUrls`) and tracks processed DOM nodes with a `WeakSet` (`processedAnchors`) to avoid memory leaks and redundant network calls.
