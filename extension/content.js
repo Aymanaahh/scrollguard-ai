@@ -3,20 +3,14 @@
  *
  * Zero-click, real-time link scanner for SPAs and static pages.
  *
- * On load, extracts every <a> element via querySelectorAll and sends the
- * hrefs in a single batch to the background service worker, which forwards
- * them to the FastAPI backend for AI analysis.
- *
- * A MutationObserver then watches document.body for dynamically inserted
- * <a> nodes (infinite scroll, AJAX inserts, etc.) and dispatches only the
- * new, unseen links.
- *
- * When the backend returns "Dangerous" or "Suspicious" the offending <a>
- * tag is visually marked inline with an interactive, clickable badge that
- * opens a detail modal.
- *
- *   Dangerous  → red outline + 🚨 [DANGEROUS SCAN] badge (red bg, white text)
- *   Suspicious → amber outline + ⚠️ [SUSPICIOUS SCAN] badge (amber bg, dark text)
+ * Architecture:
+ *   1. Main-page scan  – On load, sends window.location.href to the backend.
+ *      If the page itself is flagged, a fixed top warning banner is injected.
+ *   2. Inline link scan – querySelectorAll + MutationObserver scans every
+ *      external <a> tag.  Flagged links get coloured outlines and interactive
+ *      badges that open a detail modal on click.
+ *   3. Allowlist – Trusted domains are skipped automatically to conserve
+ *      API quota and eliminate false positives on known-safe sites.
  *
  * All injected CSS classes are prefixed with "sg-ai-" to prevent host-page
  * stylesheet collisions.
@@ -33,13 +27,61 @@
   /** WeakSet of <a> elements already processed (GC-safe). */
   const processedAnchors = new WeakSet();
 
+  // ── Trusted domain allowlist ───────────────────────────────────────────────
+
+  /**
+   * Domains that are always treated as safe.  Checking is suffix-based so
+   * subdomains (www.google.com, mail.google.com) are also covered.
+   *
+   * This list saves API quota and prevents false positives on sites that
+   * are universally trusted.
+   */
+  const TRUSTED_DOMAINS = [
+    "google.com",
+    "youtube.com",
+    "github.com",
+    "facebook.com",
+    "linkedin.com",
+    "microsoft.com",
+    "apple.com",
+    "amazon.com",
+    "twitter.com",
+    "x.com",
+    "wikipedia.org",
+    "reddit.com",
+    "stackoverflow.com",
+    "instagram.com",
+    "whatsapp.com",
+    "netflix.com",
+    "yahoo.com",
+    "bing.com",
+    "twitch.tv",
+    "medium.com",
+  ];
+
+  /**
+   * Check whether a hostname belongs to a trusted domain.
+   * Matches exact hostnames and subdomains (e.g. www.google.com,
+   * mail.google.com) but NOT look-alikes (e.g. evilgoogle.com).
+   *
+   * @param {string} hostname
+   * @returns {boolean} true if the hostname is trusted.
+   */
+  function isAllowlisted(hostname) {
+    if (!hostname) return false;
+    const lower = hostname.toLowerCase();
+    return TRUSTED_DOMAINS.some(
+      (d) => lower === d || lower.endsWith("." + d)
+    );
+  }
+
   // ── Link extraction & validation ───────────────────────────────────────────
 
   /**
    * Decide whether an href is worth sending to the backend.
    *
    * Rejects empty, javascript:, data:, mailto:, tel:, #anchor,
-   * navigation stubs, and same-origin links.
+   * navigation stubs, same-origin links, and allowlisted domains.
    */
   function isValidExternalLink(href) {
     if (!href) return false;
@@ -70,6 +112,9 @@
 
     // Same-origin → internal navigation
     if (parsed.hostname === window.location.hostname) return false;
+
+    // Trusted domain → skip
+    if (isAllowlisted(parsed.hostname)) return false;
 
     return true;
   }
@@ -129,6 +174,136 @@
     } catch (_err) {
       return null;
     }
+  }
+
+  // ── Main-page banner ───────────────────────────────────────────────────────
+
+  /**
+   * Scan the current page URL (window.location.href) via the backend.
+   * If flagged as Dangerous or Suspicious, inject a fixed top warning banner.
+   * Trusted domains are skipped automatically.
+   */
+  async function scanMainPage() {
+    const pageUrl = window.location.href;
+
+    if (isAllowlisted(window.location.hostname)) return;
+
+    const results = await sendToBackground([pageUrl]);
+    if (!Array.isArray(results) || results.length === 0) return;
+
+    const result = results[0];
+    if (!result || result.error) return;
+
+    if (result.status === "Dangerous" || result.status === "Suspicious") {
+      injectPageBanner(result);
+    }
+  }
+
+  /**
+   * Inject a fixed top warning banner when the main page itself is flagged.
+   *
+   *   Dangerous  → red banner with shield icon
+   *   Suspicious → amber banner with warning icon
+   *
+   * Includes a dismiss (X) button.  All styles are inline and classes
+   * prefixed with "sg-ai-" for isolation from the host stylesheet.
+   *
+   * @param {Object} result - Backend result for the page URL.
+   */
+  function injectPageBanner(result) {
+    // Prevent duplicate banners
+    if (document.querySelector("[data-sg-ai-banner]")) return;
+
+    const isDangerous = result.status === "Dangerous";
+    const score = result.score || 0;
+
+    // ── Banner container ──
+    const banner = document.createElement("div");
+    banner.setAttribute("data-sg-ai-banner", "true");
+    banner.className = "sg-ai-page-banner";
+    Object.assign(banner.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100%",
+      zIndex: "2147483646",
+      background: isDangerous
+        ? "linear-gradient(135deg, #991b1b 0%, #dc2626 100%)"
+        : "linear-gradient(135deg, #92400e 0%, #d97706 100%)",
+      color: "#ffffff",
+      padding: "12px 50px 12px 16px",
+      fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+      fontSize: "13px",
+      lineHeight: "1.4",
+    });
+
+    // Icon
+    const icon = document.createElement("span");
+    icon.textContent = isDangerous ? "🚨" : "⚠️";
+    Object.assign(icon.style, { fontSize: "22px", lineHeight: "1" });
+    banner.appendChild(icon);
+
+    // Text content
+    const textWrap = document.createElement("div");
+    textWrap.style.flex = "1";
+
+    const headline = document.createElement("strong");
+    headline.textContent = isDangerous
+      ? "ScrollGuard AI: This page is DANGEROUS"
+      : "ScrollGuard AI: This page is SUSPICIOUS";
+    Object.assign(headline.style, {
+      fontSize: "14px",
+      fontWeight: "700",
+      letterSpacing: "0.3px",
+    });
+
+    const detail = document.createElement("div");
+    detail.textContent =
+      "Risk Score: " + score + "/100 — " +
+      (result.explanation || "Potential threat detected on this page.");
+    Object.assign(detail.style, {
+      fontSize: "12px",
+      opacity: "0.9",
+      marginTop: "2px",
+    });
+
+    textWrap.appendChild(headline);
+    textWrap.appendChild(detail);
+    banner.appendChild(textWrap);
+
+    // Dismiss button
+    const dismissBtn = document.createElement("button");
+    dismissBtn.className = "sg-ai-banner-dismiss";
+    dismissBtn.textContent = "\u2715";
+    dismissBtn.title = "Dismiss warning";
+    dismissBtn.setAttribute("aria-label", "Dismiss warning banner");
+    Object.assign(dismissBtn.style, {
+      position: "absolute",
+      top: "8px",
+      right: "12px",
+      background: "rgba(255,255,255,0.2)",
+      border: "none",
+      color: "#ffffff",
+      fontSize: "16px",
+      fontWeight: "700",
+      cursor: "pointer",
+      padding: "4px 8px",
+      borderRadius: "4px",
+      lineHeight: "1",
+    });
+    dismissBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      banner.remove();
+    });
+    banner.appendChild(dismissBtn);
+
+    // Insert at the very top of <body>
+    document.body.insertBefore(banner, document.body.firstChild);
   }
 
   // ── Interactive explanation modal ──────────────────────────────────────────
@@ -568,10 +743,13 @@
   // ── Initialization ─────────────────────────────────────────────────────────
 
   function init() {
-    // 1. Initial scan: every <a> already present in the DOM
+    // 1. Scan the main page URL itself (skip if allowlisted)
+    scanMainPage();
+
+    // 2. Initial scan: every <a> already present in the DOM
     scanLinks(document.body);
 
-    // 2. Dynamic scan: watch for newly inserted <a> tags
+    // 3. Dynamic scan: watch for newly inserted <a> tags
     const observer = new MutationObserver(onMutations);
     observer.observe(document.body, {
       childList: true,
