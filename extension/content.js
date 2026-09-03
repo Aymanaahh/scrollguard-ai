@@ -354,7 +354,7 @@
   /**
    * Inject a full-screen overlay modal showing the AI analysis details
    * for a flagged link.  The modal includes:
-   *   - Threat level header with warning icon
+   *   - Threat level header with warning icon and ScrollGuard logo
    *   - Scanned URL
    *   - Risk score
    *   - AI explanation
@@ -445,6 +445,23 @@
     titleWrap.appendChild(title);
     titleWrap.appendChild(subtitle);
     header.appendChild(titleWrap);
+
+    // Brand logo (right-aligned alongside the warning title).  Loaded via
+    // chrome.runtime.getURL so the chrome-extension:// URL resolves in the
+    // host page; requires the icons to be web-accessible in the manifest.
+    const logo = document.createElement("img");
+    logo.className = "sg-ai-modal-logo";
+    logo.src = chrome.runtime.getURL("icons/icon48.png");
+    logo.alt = "ScrollGuard AI";
+    Object.assign(logo.style, {
+      width: "32px",
+      height: "32px",
+      marginLeft: "auto",
+      borderRadius: "6px",
+      flexShrink: "0",
+    });
+    header.appendChild(logo);
+
     modal.appendChild(header);
 
     // ── Body ──
