@@ -11,6 +11,10 @@
  *      badges that open a detail modal on click.
  *   3. Allowlist – Trusted domains are skipped automatically to conserve
  *      API quota and eliminate false positives on known-safe sites.
+ *   4. Auth-path filter – Scraped links containing standard authentication
+ *      paths (login, signin, signup, auth, oauth, register) are skipped
+ *      without an API call — auth pages are overwhelmingly legitimate and
+ *      were a leading source of false positives.
  *
  * All injected CSS classes are prefixed with "sg-ai-" to prevent host-page
  * stylesheet collisions.
@@ -75,13 +79,47 @@
     );
   }
 
+  // ── Authentication-path filter ─────────────────────────────────────────────
+
+  /**
+   * Standard authentication path keywords.  Any scraped link whose URL
+   * string contains one of these is skipped entirely — no API call is
+   * made and the link is ignored.
+   *
+   * Rationale: login portals, sign-up flows, and OAuth redirects are
+   * overwhelmingly legitimate pages and were a leading source of false
+   * positives.  Skipping them also conserves API quota.
+   */
+  const AUTH_PATH_KEYWORDS = [
+    "login",
+    "signin",
+    "sign-in",
+    "signup",
+    "sign-up",
+    "auth",
+    "oauth",
+    "register",
+  ];
+
+  /**
+   * Check whether a URL string contains a standard authentication path.
+   *
+   * @param {string} url - The absolute href string to inspect.
+   * @returns {boolean} true if an auth keyword is present.
+   */
+  function hasAuthPath(url) {
+    const lower = url.toLowerCase();
+    return AUTH_PATH_KEYWORDS.some((k) => lower.includes(k));
+  }
+
   // ── Link extraction & validation ───────────────────────────────────────────
 
   /**
    * Decide whether an href is worth sending to the backend.
    *
    * Rejects empty, javascript:, data:, mailto:, tel:, #anchor,
-   * navigation stubs, same-origin links, and allowlisted domains.
+   * navigation stubs, authentication paths (login, signin, signup,
+   * auth, oauth, register), same-origin links, and allowlisted domains.
    */
   function isValidExternalLink(href) {
     if (!href) return false;
@@ -96,6 +134,11 @@
 
     // Reject SPA navigation stubs
     if (/^[#!\/?]?$/.test(trimmed)) return false;
+
+    // Standard authentication path (login, signin, signup, auth, oauth,
+    // register) → skip the API call entirely to save quota and eliminate
+    // false positives on legitimate auth pages
+    if (hasAuthPath(trimmed)) return false;
 
     // Must be parseable as a URL
     let parsed;
