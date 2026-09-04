@@ -1,0 +1,1 @@
+Requires a `backend/.env` file containing `DASHSCOPE_API_KEY` before any script can run. Start the server with `uvicorn main:app --reload` on port 8000 (or set `PORT` env var), then run `python evaluate_engine.py` to score `scam_dataset.json` against the live endpoint, `python test_scan.py` for a quick manual scan, or `python test_qwen.py` to verify Qwen API connectivity.

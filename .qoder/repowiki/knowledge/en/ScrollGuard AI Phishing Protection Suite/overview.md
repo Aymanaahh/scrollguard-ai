@@ -1,0 +1,1 @@
+End-to-end phishing and scam-link protection pairing a Chrome Manifest V3 content-scanning extension with a local FastAPI backend that classifies URLs via Alibaba Qwen LLM.

@@ -9,16 +9,16 @@
 - [popup.js](file://extension/popup.js)
 - [popup.html](file://extension/popup.html)
 - [manifest.json](file://extension/manifest.json)
+- [test_qwen.py](file://backend/test_qwen.py)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced backend classification system with improved system prompts featuring high-precision classification rules (Dangerous 70-100, Suspicious 26-69, Safe 0-15)
-- Added few-shot learning examples to improve AI classification accuracy
-- Implemented strict JSON output schema enforcement for consistent AI responses
-- Added main-page scanning capability that analyzes current page URLs before link examination
-- Enhanced threat detection with comprehensive government benefit scam detection patterns
-- Improved error handling and fallback mechanisms throughout the communication chain
+- Updated AI model configuration from qwen-max to qwen3.6-plus for improved threat detection accuracy
+- Enhanced system prompt with stricter JSON enforcement and critical dangerous status classification directives
+- Added comprehensive guidelines for identifying fake government schemes, credential harvesting, and fake lottery scams
+- Implemented robust few-shot learning examples demonstrating proper threat classification patterns
+- Strengthened bias rules to prevent downgrading clear threats below "Dangerous" status
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -62,7 +62,7 @@ HEUR["Heuristic Scanner<br/>heuristics.py"]
 DATA["Scam Dataset<br/>scam_dataset.json"]
 end
 subgraph "Cloud AI"
-LLM["qwen-max via DashScope"]
+LLM["qwen3.6-plus via DashScope"]
 end
 CS --> |"Extract links via DOM queries"| CS
 CS --> |"chrome.runtime.sendMessage"| BSW
@@ -86,7 +86,7 @@ CS --> |"Broadcast stats"| POP
 - **Enhanced Content Script**: Advanced DOM query functionality with real-time link extraction, interactive visual feedback, and modal display system
 - **Streamlined Background Service Worker**: Handles batch link analysis requests and communicates with backend API
 - **Enhanced Heuristic Scanning Engine**: Comprehensive rule-based detection system identifying suspicious patterns in URLs including sophisticated TLD detection, typosquatting, shortened URLs, and scam keywords
-- **AI-Powered Analysis Backend**: Integrates heuristic results with advanced AI analysis through qwen-max model for comprehensive threat assessment
+- **AI-Powered Analysis Backend**: Integrates heuristic results with advanced AI analysis through qwen3.6-plus model for comprehensive threat assessment
 - **Interactive Popup Interface**: Manual scanning capability with live statistics monitoring and detailed result presentation
 
 Key responsibilities:
@@ -113,7 +113,7 @@ participant CS as "Content Script<br/>content.js"
 participant BSW as "Background Service Worker<br/>background.js"
 participant BE as "FastAPI Server<br/>main.py"
 participant HEUR as "Heuristic Scanner<br/>heuristics.py"
-participant AI as "qwen-max (DashScope)"
+participant AI as "qwen3.6-plus (DashScope)"
 Note over CS,BE : Enhanced Link Analysis Process
 CS->>CS : Scan main page URL first
 CS->>CS : Extract links via DOM queries
@@ -124,7 +124,7 @@ HEUR-->>BE : status, score, reasons
 alt Heuristic flags detected
 BE-->>BSW : Return heuristic result
 else No heuristic flags
-BE->>AI : chat.completions(model="qwen-max")
+BE->>AI : chat.completions(model="qwen3.6-plus")
 AI-->>BE : JSON {status, risk_score, explanation, reasons}
 BE-->>BSW : Combined result
 end
@@ -280,13 +280,19 @@ Classify --> |No| SafeStatus["Safe"]
 - [heuristics.py:4-110](file://backend/heuristics.py#L4-L110)
 
 ### AI-Powered Analysis Integration
-The backend integrates heuristic results with advanced AI analysis:
+The backend integrates heuristic results with advanced AI analysis using the upgraded qwen3.6-plus model:
 
 **Hybrid Analysis Approach**:
 - Runs heuristic scan first for immediate threat identification
 - Only proceeds to AI analysis when heuristic scan returns "Safe" status
 - Combines heuristic findings with AI insights for comprehensive assessment
 - Maintains fast response times by leveraging quick heuristic checks
+
+**Enhanced Model Configuration**:
+- **Upgraded Model**: Now using qwen3.6-plus instead of qwen-max for improved threat detection accuracy
+- **Rate Limiting**: Semaphore-based concurrency control (max 5 concurrent calls)
+- **Error Handling**: Robust exception management with fallback mechanisms
+- **JSON Parsing**: Automatic stripping of markdown fences from LLM responses
 
 **Enhanced Prompt Engineering Strategy**:
 - System prompt defines ScrollGuard AI role as cybersecurity expert specializing in online scams, phishing links, and fake giveaways targeting social media users
@@ -324,13 +330,13 @@ class FastAPIApp {
 class HeuristicScanner {
 +heuristic_scan(url) tuple
 }
-class OpenAIClient {
+class QwenClient {
 +chat.completions.create(...)
 }
 FastAPIApp --> URLBatch : "validates"
 FastAPIApp --> AnalysisResponse : "returns"
 FastAPIApp --> HeuristicScanner : "calls"
-FastAPIApp --> OpenAIClient : "calls model"
+FastAPIApp --> QwenClient : "calls qwen3.6-plus"
 ```
 
 **Diagram sources**
@@ -365,7 +371,7 @@ The content script implements a sophisticated modal system for displaying compre
 
 ## Enhanced Backend Classification System
 
-The backend has been significantly enhanced with a sophisticated classification system that combines rule-based heuristics with AI-powered analysis for maximum accuracy.
+The backend has been significantly enhanced with a sophisticated classification system that combines rule-based heuristics with AI-powered analysis using the upgraded qwen3.6-plus model for maximum accuracy.
 
 ### High-Precision Classification Rules
 
@@ -389,6 +395,13 @@ The system prompt has been completely redesigned to provide:
 }
 ```
 
+**Critical Dangerous Status Classification Directives**:
+- **Fake Government Benefit Schemes**: Mandatory "Dangerous" classification for BISP/Ehsaas scams, PM Kisan fraud, and other government benefit impersonation attempts
+- **Credential Harvesting**: Immediate "Dangerous" status for pages requesting password verification, bank details, or CNIC numbers on non-official domains
+- **Fake Lottery Scams**: Urgent "Dangerous" classification for "Congratulations, you won!" messages paired with suspicious TLDs or unknown domains
+- **Brand Impersonation**: Strict "Dangerous" tagging for typosquatting of well-known brands (g00gle.com, paypa1.com, amaz0n-deals.com, faceb00k-login.net)
+- **Bank Impersonation**: Immediate threat classification for financial institution impersonation on look-alike domains
+
 **Comprehensive Classification Guidelines**:
 - **Dangerous Patterns**: Fake government benefit schemes, credential harvesting, fake lottery scams, typosquatting, bank impersonation, deeply nested subdomains
 - **Suspicious Indicators**: Get-rich-quick schemes, URL shorteners with urgency, high-pressure language, unrealistic financial promises
@@ -406,6 +419,7 @@ The system implements intelligent bias rules:
 - When uncertain between Safe and Suspicious, default to Safe
 - When clear Dangerous patterns are detected, must return Dangerous without downgrading
 - Prioritizes user safety over false negatives
+- Critical enforcement directive prevents downgrading clear threats below "Dangerous" status
 
 **Section sources**
 - [main.py:64-177](file://backend/main.py#L64-L177)
@@ -446,7 +460,7 @@ When the main page itself is flagged as dangerous or suspicious, the system inje
 The main page scanner respects the existing allowlist system, automatically skipping trusted domains to avoid unnecessary scanning and potential performance issues.
 
 **Section sources**
-- [content.js:186-307](file://extension/content.js#L186-L307)
+- [content.js:186-307](file://extension/content.js#L186-307)
 - [content.js:745-747](file://extension/content.js#L745-L747)
 
 ## Interactive User Interface System
@@ -638,6 +652,12 @@ Common issues and solutions for the enhanced architecture:
 - **Score Calculation Issues**: Verify point assignments and threshold values for new detection rules
 - **TLD Detection Problems**: Ensure suspicious TLD list is up-to-date with current abuse patterns
 
+**AI Model Issues**:
+- **Model Upgrade Problems**: Verify qwen3.6-plus model availability and compatibility with DashScope API
+- **Prompt Parsing Errors**: Check system prompt formatting and JSON schema compliance
+- **Classification Accuracy**: Review few-shot examples and bias rules for optimal threat detection
+- **API Connection Issues**: Test DashScope connectivity and verify API key configuration
+
 **Popup Functionality**:
 - **Button Not Working**: Check event listener attachment and DOM element existence
 - **Results Not Displaying**: Verify message passing and result formatting
@@ -665,7 +685,7 @@ Common issues and solutions for the enhanced architecture:
 - [popup.js:7-36](file://extension/popup.js#L7-L36)
 
 ## Conclusion
-ScrollGuard AI delivers an enhanced threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis and sophisticated user interaction. The enhanced heuristic scanning engine provides sophisticated rule-based detection with comprehensive TLD monitoring, typosquatting protection, and keyword analysis. The new main-page scanning capability ensures protection against malicious landing pages before users interact with any links. The interactive user interface system provides real-time visual feedback through inline markings and detailed modal displays. The enhanced backend classification system with high-precision rules and few-shot learning examples significantly improves threat detection accuracy. The real-time statistics tracking ensures users can monitor scanning activity across all tabs through a unified dashboard interface. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
+ScrollGuard AI delivers an enhanced threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis and sophisticated user interaction. The upgraded qwen3.6-plus model provides improved threat detection accuracy compared to the previous qwen-max model, while maintaining backward compatibility. The enhanced heuristic scanning engine provides sophisticated rule-based detection with comprehensive TLD monitoring, typosquatting protection, and keyword analysis. The new main-page scanning capability ensures protection against malicious landing pages before users interact with any links. The interactive user interface system provides real-time visual feedback through inline markings and detailed modal displays. The enhanced backend classification system with high-precision rules, strict JSON enforcement, and critical dangerous status classification directives significantly improves threat detection accuracy, particularly for fake government schemes, credential harvesting, and fake lottery scams. The real-time statistics tracking ensures users can monitor scanning activity across all tabs through a unified dashboard interface. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
 
 ## Appendices
 
@@ -674,7 +694,7 @@ ScrollGuard AI delivers an enhanced threat detection system that effectively com
 - On page load, content script scans main page URL first, then extracts all visible links using DOM queries with WeakSet deduplication
 - Links are sent to background service worker for batch processing with timeout handling
 - Backend runs comprehensive heuristic scan first for immediate threat identification
-- AI analysis performed only when heuristic scan returns safe results with rate limiting
+- AI analysis performed only when heuristic scan returns safe results using qwen3.6-plus model with rate limiting
 - Results returned with enhanced inline visual indicators applied to links
 - Interactive badges displayed for flagged links with modal detail access
 
@@ -715,6 +735,7 @@ ScrollGuard AI delivers an enhanced threat detection system that effectively com
 - System prompt provides strict JSON schema and comprehensive classification guidelines
 - Few-shot learning examples demonstrate proper classification patterns
 - High-precision rules ensure accurate categorization into Safe (0-15), Suspicious (26-69), or Dangerous (70-100)
+- Critical enforcement directives mandate "Dangerous" status for fake government schemes, credential harvesting, and fake lotteries
 - Bias rules prioritize user safety while minimizing false positives
 - Robust error handling ensures graceful degradation when AI service is unavailable
 
