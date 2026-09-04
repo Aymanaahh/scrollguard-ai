@@ -8,17 +8,16 @@
 - [scam_dataset.json](file://backend/scam_dataset.json)
 - [test_scan.py](file://backend/test_scan.py)
 - [test_qwen.py](file://backend/test_qwen.py)
+- [Procfile](file://backend/Procfile)
 - [README.md](file://README.md)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- **Complete Architecture Rewrite**: Migrated from synchronous to fully asynchronous FastAPI implementation with AsyncOpenAI client
-- **Enhanced Concurrency Control**: Implemented asyncio.Semaphore for rate limiting (max 5 simultaneous LLM calls)
-- **Concurrent URL Analysis**: Added asyncio.gather() for parallel processing of multiple URLs in batch operations
-- **Sophisticated Heuristic Engine**: Enhanced pattern matching with advanced detection rules for suspicious TLDs, URL shorteners, typosquatting, and refined risk scoring
-- **Improved Error Handling**: Better exception handling for JSON parsing and network errors
-- **Updated Evaluation Framework**: Optimized for batch processing efficiency
+- **Model Upgrade**: Updated primary LLM model from 'qwen3.7-plus' to 'qwen-max' for enhanced threat analysis capabilities
+- **Direct Server Deployment**: Added Uvicorn entry point with environment-based configuration support for streamlined deployment
+- **Cloud Deployment Support**: Enhanced Procfile for standard PaaS deployment workflows
+- **Improved Analysis Engine**: Leveraging qwen-max model for more sophisticated threat detection and contextual analysis
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -35,14 +34,17 @@
 ## Introduction
 This document provides comprehensive API documentation for the ScrollGuard AI backend RESTful service built with an **asynchronous FastAPI architecture**. The system features a fully async implementation with AsyncOpenAI client integration for DashScope, concurrent URL analysis capabilities, sophisticated heuristic pre-screening, and robust error handling. It covers server configuration (CORS, async OpenAI client setup), endpoint specifications (health check, content analysis, and batch URL scanning), authentication via environment variables, error handling strategies, evaluation framework integration, client implementation guidelines, and debugging using FastAPI's interactive documentation.
 
+**Updated**: The backend now utilizes the enhanced qwen-max model for improved threat analysis capabilities and includes direct server deployment capabilities with environment-based configuration support.
+
 ## Project Structure
 The backend is organized with clear separation of concerns and modern async patterns:
-- **Server and endpoints**: main.py (fully asynchronous implementation)
+- **Server and endpoints**: main.py (fully asynchronous implementation with qwen-max model)
 - **Heuristic scanning engine**: heuristics.py (enhanced rule-based analysis)
 - **Evaluation harness**: evaluate_engine.py (optimized for batch processing)
 - **Benchmark dataset**: scam_dataset.json
 - **Batch testing utility**: test_scan.py
 - **Optional Qwen connectivity test**: test_qwen.py
+- **Cloud deployment configuration**: Procfile (Uvicorn entry point)
 - **Project overview and setup instructions**: README.md
 
 ```mermaid
@@ -57,31 +59,36 @@ H["Batch Test<br/>test_scan.py"] --> D
 I["Qwen Connectivity Test<br/>test_qwen.py"] --> C
 J["Concurrency Control<br/>asyncio.Semaphore"] --> D
 K["Concurrent Processing<br/>asyncio.gather()"] --> D
+L["Uvicorn Entry Point<br/>main.py + Procfile"] --> A
 ```
 
 **Diagram sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
 - [main.py:90-91](file://backend/main.py#L90-L91)
 - [main.py:204-208](file://backend/main.py#L204-L208)
+- [main.py:211-222](file://backend/main.py#L211-L222)
+- [Procfile:1-2](file://backend/Procfile#L1-L2)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
 
 **Section sources**
-- [main.py:1-209](file://backend/main.py#L1-L209)
+- [main.py:1-223](file://backend/main.py#L1-L223)
 - [heuristics.py:1-110](file://backend/heuristics.py#L1-L110)
 - [evaluate_engine.py:1-78](file://backend/evaluate_engine.py#L1-L78)
 - [scam_dataset.json:1-37](file://backend/scam_dataset.json#L1-L37)
 - [test_scan.py:1-52](file://backend/test_scan.py#L1-L52)
 - [test_qwen.py:1-34](file://backend/test_qwen.py#L1-L34)
+- [Procfile:1-2](file://backend/Procfile#L1-L2)
 - [README.md:63-143](file://README.md#L63-L143)
 
 ## Core Components
 - **Asynchronous FastAPI application** with CORS enabled for browser extension communication
-- **AsyncOpenAI client** configured for Alibaba Cloud DashScope with model qwen3.7-plus
+- **AsyncOpenAI client** configured for Alibaba Cloud DashScope with **enhanced qwen-max model**
 - **Pydantic models** defining request/response schemas for structured validation and auto-generated docs
 - **Enhanced heuristic scanning engine** with sophisticated pattern matching for suspicious TLDs, URL shortener detection, typosquatting detection, and refined risk scoring
 - **Concurrency control** using asyncio.Semaphore for rate limiting (max 5 simultaneous LLM calls)
 - **Concurrent URL processing** using asyncio.gather() for efficient batch operations
+- **Direct server deployment** with Uvicorn entry point and environment-based configuration
 - Endpoints:
   - GET /: Health check returning a simple status message
   - POST /analyze: Content analysis endpoint that runs heuristic scans first, then calls LLM if needed
@@ -95,6 +102,7 @@ Key behaviors:
 - **Enhanced**: Sophisticated heuristic detection includes free TLD detection, typosquatting patterns, shortened URL detection, scam keywords, HTTPS security checks, and domain analysis
 - Errors are converted to HTTPException with appropriate status codes
 - **New**: Asynchronous architecture enables better performance and resource utilization
+- **Updated**: Enhanced model upgrade to qwen-max provides improved threat analysis capabilities
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
@@ -103,10 +111,13 @@ Key behaviors:
 - [main.py:90-91](file://backend/main.py#L90-L91)
 - [main.py:103-168](file://backend/main.py#L103-L168)
 - [main.py:177-208](file://backend/main.py#L177-L208)
+- [main.py:211-222](file://backend/main.py#L211-L222)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 ## Architecture Overview
 The backend exposes a minimal REST API backed by an external LLM with enhanced heuristic pre-screening and **asynchronous concurrency control**. Clients send requests to the FastAPI server, which performs rule-based analysis first, then forwards complex cases to the DashScope API for detailed assessment using concurrent processing. An evaluation script tests the API against a curated dataset to measure accuracy.
+
+**Updated**: The architecture now leverages the enhanced qwen-max model for superior threat analysis and includes streamlined deployment options through direct Uvicorn entry points.
 
 ```mermaid
 sequenceDiagram
@@ -114,7 +125,7 @@ participant Client as "Client"
 participant FastAPI as "AsyncFastAPI App<br/>main.py"
 participant Semaphore as "Concurrency Control<br/>asyncio.Semaphore"
 participant Heuristics as "Heuristic Engine<br/>heuristics.py"
-participant LLM as "DashScope API<br/>qwen3.7-plus"
+participant LLM as "DashScope API<br/>qwen-max"
 participant Eval as "Evaluator<br/>evaluate_engine.py"
 Client->>FastAPI : GET "/"
 FastAPI-->>Client : 200 OK {message}
@@ -150,6 +161,7 @@ Eval-->>Eval : Compute accuracy metrics
 - [main.py:90-91](file://backend/main.py#L90-L91)
 - [main.py:123-137](file://backend/main.py#L123-L137)
 - [main.py:204-208](file://backend/main.py#L204-L208)
+- [main.py:132-137](file://backend/main.py#L132-L137)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
 
@@ -201,7 +213,7 @@ Example responses:
   - **Enhanced**: Built-in concurrency control using asyncio.Semaphore (max 5 simultaneous LLM calls)
   - Requests are processed asynchronously with automatic rate limiting to prevent overwhelming the DashScope API
 
-**Updated**: The endpoint now uses fully asynchronous processing with enhanced heuristic pre-screening and built-in concurrency control.
+**Updated**: The endpoint now uses the enhanced qwen-max model for improved threat analysis capabilities and fully asynchronous processing with enhanced heuristic pre-screening and built-in concurrency control.
 
 Request examples:
 - Minimal payload with URL only:
@@ -231,7 +243,7 @@ Heuristic --> Check{"Status != Safe?"}
 Check --> |Yes| ReturnHeuristic["Return heuristic result<br/>without AI cost"]
 Check --> |No| BuildPrompt["Build user payload<br/>(platform + url + text)"]
 BuildPrompt --> Semaphore["Acquire semaphore<br/>rate limiting"]
-Semaphore --> CallLLM["Call DashScope API<br/>chat.completions.create"]
+Semaphore --> CallLLM["Call DashScope API<br/>chat.completions.create<br/>model: qwen-max"]
 CallLLM --> Parse{"Parse JSON response?"}
 Parse --> |No| Err500["Return 500 Internal Server Error"]
 Parse --> |Yes| Release["Release semaphore"]
@@ -245,6 +257,7 @@ Return200 --> End
 **Diagram sources**
 - [main.py:177-195](file://backend/main.py#L177-L195)
 - [main.py:103-168](file://backend/main.py#L103-L168)
+- [main.py:132-137](file://backend/main.py#L132-L137)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 **Section sources**
@@ -298,7 +311,7 @@ Loop --> Heuristic["Run heuristic scan"]
 Heuristic --> Check{"Status != Safe?"}
 Check --> |Yes| AddResult["Add heuristic result to results"]
 Check --> |No| Semaphore["Acquire semaphore<br/>rate limiting"]
-Semaphore --> CallLLM["Call AI for detailed analysis"]
+Semaphore --> CallLLM["Call AI for detailed analysis<br/>using qwen-max model"]
 CallLLM --> Parse{"Parse AI response?"}
 Parse --> |Yes| AddResult
 Parse --> |No| AddError["Add error result"]
@@ -362,7 +375,7 @@ Configuration highlights:
 
 ### AsyncOpenAI Client Setup for DashScope Integration
 - Uses the **AsyncOpenAI SDK** with a custom base_url pointing to DashScope's compatible endpoint
-- Model used: qwen3.7-plus
+- **Updated Model**: Now using **qwen-max** instead of qwen3.7-plus for enhanced threat analysis capabilities
 - Authentication via DASHSCOPE_API_KEY loaded from environment
 - **Fully asynchronous implementation** for better performance and resource utilization
 
@@ -370,10 +383,32 @@ Notes:
 - If DASHSCOPE_API_KEY is not set, the server will raise a runtime error at startup
 - The same client configuration is mirrored in the optional connectivity test script
 - **Enhanced**: Async implementation enables concurrent API calls with proper rate limiting
+- **Updated**: The qwen-max model provides improved contextual understanding and more accurate threat classification
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
+- [main.py:132-137](file://backend/main.py#L132-L137)
 - [test_qwen.py:1-34](file://backend/test_qwen.py#L1-L34)
+
+### Direct Server Deployment with Uvicorn
+- **New Feature**: Built-in Uvicorn entry point for direct server deployment
+- Environment-based configuration support for flexible deployment scenarios
+- Cloud-ready deployment with configurable port binding
+
+Deployment Options:
+- **Direct Execution**: Run `python main.py` for local development
+- **Development Mode**: Use `python -m uvicorn main:app --reload --port 8000` for auto-reload
+- **Production Deployment**: Configure via Procfile for PaaS platforms
+- **Environment Variables**: PORT (default 8000), ENV (development vs production mode)
+
+Configuration Features:
+- Automatic reload in development mode when ENV != "production"
+- Host binding to 0.0.0.0 for container/cloud compatibility
+- Port configuration via environment variable with default fallback
+
+**Section sources**
+- [main.py:211-222](file://backend/main.py#L211-L222)
+- [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 ### Evaluation Framework Integration
 The evaluation script has been optimized for the new batch endpoint with concurrent processing:
@@ -400,7 +435,7 @@ Accuracy calculation:
 **Enhanced**: Now uses batch processing with concurrent execution for improved efficiency and reduced API calls.
 
 **Section sources**
-- [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
+- [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-77)
 - [scam_dataset.json:1-37](file://backend/scam_dataset.json#L1-L37)
 - [README.md:175-190](file://README.md#L175-L190)
 
@@ -421,6 +456,7 @@ Main --> Pydantic["Pydantic Models"]
 Main --> DotEnv["python-dotenv"]
 Main --> AsyncOpenAI["AsyncOpenAI SDK"]
 Main --> Heuristics["heuristics.py"]
+Main --> Uvicorn["Uvicorn Server"]
 Heuristics --> Re["re module"]
 Heuristics --> URLLib["urllib.parse"]
 Eval["evaluate_engine.py"] --> Requests["requests"]
@@ -428,16 +464,20 @@ Eval --> Dataset["scam_dataset.json"]
 Eval --> Sklearn["sklearn.metrics"]
 TestScan["test_scan.py"] --> Requests
 TestQwen["test_qwen.py"] --> OpenAI["OpenAI SDK"]
+Procfile["Procfile"] --> Uvicorn
 ```
 
 **Diagram sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
+- [main.py:211-222](file://backend/main.py#L211-L222)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 - [test_qwen.py:1-15](file://backend/test_qwen.py#L1-L15)
+- [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
+- [main.py:211-222](file://backend/main.py#L211-L222)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 
@@ -445,10 +485,12 @@ TestQwen["test_qwen.py"] --> OpenAI["OpenAI SDK"]
 - **Enhanced**: Heuristic pre-screening significantly reduces AI token usage by filtering obvious threats before expensive LLM calls
 - **Enhanced**: Built-in concurrency control using asyncio.Semaphore prevents overwhelming the DashScope API with too many simultaneous requests
 - **Enhanced**: Fully asynchronous architecture enables better resource utilization and concurrent processing
+- **Updated**: The qwen-max model provides improved analysis accuracy while maintaining performance efficiency
 - Network latency to DashScope may vary; consider timeouts and retries in clients
 - Avoid sending overly large payloads; keep text concise to reduce token usage and latency
 - **Enhanced**: Use the /scan_links endpoint for batch processing to improve efficiency and reduce API overhead
 - **Enhanced**: Concurrent URL processing with asyncio.gather() maximizes throughput while respecting rate limits
+- **New**: Direct server deployment eliminates additional process management overhead
 - Batch evaluations can be run offline using the evaluation script to measure throughput and accuracy without impacting live users
 
 ## Troubleshooting Guide
@@ -471,6 +513,10 @@ Common issues and resolutions:
 - **Enhanced**: Concurrency issues:
   - Symptom: Too many simultaneous LLM calls causing rate limiting
   - Resolution: Adjust _MAX_CONCURRENT_AI_CALLS constant in main.py to control concurrent requests
+- **New**: Deployment issues:
+  - Symptom: Server fails to start with Uvicorn
+  - Resolution: Check environment variables (PORT, ENV) and ensure proper installation of dependencies
+  - For cloud deployments, verify Procfile configuration matches your platform requirements
 
 Debugging with FastAPI docs:
 - Interactive API documentation is available at http://127.0.0.1:8000/docs
@@ -481,10 +527,13 @@ Debugging with FastAPI docs:
 - [main.py:31-33](file://backend/main.py#L31-L33)
 - [main.py:177-195](file://backend/main.py#L177-L195)
 - [main.py:198-208](file://backend/main.py#L198-L208)
+- [main.py:211-222](file://backend/main.py#L211-L222)
 - [README.md:127-143](file://README.md#L127-L143)
 
 ## Conclusion
-The ScrollGuard AI backend provides a lightweight, secure, and extensible REST API for real-time content analysis powered by DashScope's Qwen model with **enhanced asynchronous architecture**, sophisticated heuristic pre-screening, and **concurrent processing capabilities**. The complete rewrite to async FastAPI with AsyncOpenAI client, combined with asyncio.Semaphore for rate limiting and asyncio.gather() for concurrent URL analysis, significantly improves performance and scalability while maintaining high accuracy. With clear schemas, robust error handling, and an evaluation harness, it supports rapid development and continuous quality assurance. Clients should implement resilient networking patterns, including retries and rate limiting, to ensure reliable operation in production environments.
+The ScrollGuard AI backend provides a lightweight, secure, and extensible REST API for real-time content analysis powered by DashScope's **enhanced qwen-max model** with **improved threat analysis capabilities**, sophisticated heuristic pre-screening, and **concurrent processing capabilities**. The complete rewrite to async FastAPI with AsyncOpenAI client, combined with asyncio.Semaphore for rate limiting and asyncio.gather() for concurrent URL analysis, significantly improves performance and scalability while maintaining high accuracy. With direct server deployment capabilities through Uvicorn entry points and environment-based configuration, the system supports rapid development and continuous quality assurance. Clients should implement resilient networking patterns, including retries and rate limiting, to ensure reliable operation in production environments.
+
+**Updated**: The migration to qwen-max model enhances threat detection accuracy and contextual understanding, while the new deployment options streamline production rollout and scaling.
 
 ## Appendices
 
@@ -520,6 +569,17 @@ The ScrollGuard AI backend provides a lightweight, secure, and extensible REST A
   - Analysis: POST /analyze -> expect 200 OK with structured JSON or appropriate error
   - **Enhanced**: Batch processing: POST /scan_links -> expect 200 OK with array of concurrent results
 
+### Server Deployment Options
+- **Local Development**:
+  - Direct execution: `python main.py`
+  - Auto-reload mode: `python -m uvicorn main:app --reload --port 8000`
+- **Production Deployment**:
+  - Procfile-based: `web: uvicorn main:app --host 0.0.0.0 --port $PORT`
+  - Environment variables: DASHSCOPE_API_KEY, PORT (default 8000), ENV (development/production)
+- **Cloud Platforms**:
+  - Render, Heroku, Railway: Standard Procfile support
+  - Containerized: Docker-friendly with environment variable configuration
+
 ### Evaluation Workflow
 - Run the evaluation script after starting the server
 - The script reads scam_dataset.json, sends batch requests to /scan_links, compares predicted status with expected_status, and prints accuracy metrics
@@ -527,7 +587,7 @@ The ScrollGuard AI backend provides a lightweight, secure, and extensible REST A
 - **Enhanced**: The evaluation now benefits from batch processing efficiency and concurrent execution capabilities
 
 **Section sources**
-- [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
+- [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-77)
 - [scam_dataset.json:1-37](file://backend/scam_dataset.json#L1-L37)
 - [README.md:175-190](file://README.md#L175-L190)
 
@@ -547,3 +607,14 @@ The enhanced heuristic engine applies the following sophisticated detection rule
 
 **Section sources**
 - [heuristics.py:16-98](file://backend/heuristics.py#L16-L98)
+
+### Model Upgrade Details
+- **Previous Model**: qwen3.7-plus
+- **Current Model**: qwen-max
+- **Benefits**: Enhanced contextual understanding, improved threat classification accuracy, better natural language processing for complex scam patterns
+- **Migration**: Seamless upgrade with no API changes required
+- **Testing**: Existing test scripts may need updates to reference the new model name
+
+**Section sources**
+- [main.py:132-137](file://backend/main.py#L132-L137)
+- [test_qwen.py:21](file://backend/test_qwen.py#L21)

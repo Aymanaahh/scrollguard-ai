@@ -1,1 +1,0 @@
-FastAPI + Pydantic for request/response modeling; OpenAI Python SDK targeting Alibaba DashScope's OpenAI-compatible endpoint (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`) with the `qwen3.7-plus` model; python-dotenv for secret management; scikit-learn (`classification_report`, `confusion_matrix`) in the evaluation harness; `requests` for the evaluation script.

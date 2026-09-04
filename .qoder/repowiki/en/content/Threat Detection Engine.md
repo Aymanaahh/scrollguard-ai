@@ -9,18 +9,16 @@
 - [popup.js](file://extension/popup.js)
 - [popup.html](file://extension/popup.html)
 - [manifest.json](file://extension/manifest.json)
-- [test_scan.py](file://backend/test_scan.py)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Updated Heuristic Scanning Engine section to reflect comprehensive rule-based detection enhancements
-- Added detailed documentation for sophisticated TLD detection patterns (.tk, .ml, .ga, .cf, .gq, .xyz, .top, .buzz, .click, .icu, .cam)
-- Enhanced URL shortener service detection with expanded list of known services
-- Updated typosquatting detection for known brands (Google, PayPal, Amazon, Facebook, Apple, Microsoft)
-- Refined keyword-based scam detection with comprehensive path and domain keyword lists
-- Updated risk scoring algorithm with weighted scoring for various threat indicators
-- Enhanced visual feedback system with improved inline styling and badge integration
+- Enhanced backend classification system with improved system prompts featuring high-precision classification rules (Dangerous 70-100, Suspicious 26-69, Safe 0-15)
+- Added few-shot learning examples to improve AI classification accuracy
+- Implemented strict JSON output schema enforcement for consistent AI responses
+- Added main-page scanning capability that analyzes current page URLs before link examination
+- Enhanced threat detection with comprehensive government benefit scam detection patterns
+- Improved error handling and fallback mechanisms throughout the communication chain
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -28,22 +26,26 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Enhanced Backend Classification System](#enhanced-backend-classification-system)
+7. [Main Page Scanning Capability](#main-page-scanning-capability)
+8. [Interactive User Interface System](#interactive-user-interface-system)
+9. [Real-Time Statistics Tracking](#real-time-statistics-tracking)
+10. [Dependency Analysis](#dependency-analysis)
+11. [Performance Considerations](#performance-considerations)
+12. [Troubleshooting Guide](#troubleshooting-guide)
+13. [Conclusion](#conclusion)
+14. [Appendices](#appendices)
 
 ## Introduction
-ScrollGuard AI is a streamlined threat detection engine that combines simple browser-based link extraction with backend-driven heuristic scanning and AI-powered analysis. The system employs a simplified two-tier approach: the content script performs basic DOM queries to extract visible links from web pages, while the background service worker handles communication with the backend API for comprehensive threat analysis. The backend integrates rule-based heuristic scanning with sophisticated AI analysis through the qwen3.7-plus model to provide nuanced threat classification and explanations. This simplified architecture focuses on essential functionality while maintaining effectiveness in detecting suspicious URLs and potential threats.
+ScrollGuard AI is an advanced threat detection engine that combines browser-based link extraction with backend-driven heuristic scanning and AI-powered analysis. The system employs a sophisticated two-tier approach: the content script performs real-time DOM queries to extract visible links from web pages, while the background service worker handles communication with the backend API for comprehensive threat analysis. The enhanced user interface provides interactive detail modals showing comprehensive threat analysis, risk scores, AI explanations, and specific flagging reasons. Real-time statistics tracking ensures users can monitor scanning activity across all tabs through a unified dashboard interface.
 
 ## Project Structure
 The project consists of:
 - **Backend**: FastAPI server exposing endpoints for both single URL analysis and batch link scanning
 - **Browser Extension**: 
   - Background service worker for secure API proxying and batch processing
-  - Content script for basic link extraction from DOM elements
-  - Popup UI for manual page scanning
+  - Content script for real-time link extraction with interactive visual feedback
+  - Popup UI for manual page scanning and live statistics monitoring
 - **Heuristic Engine**: Rule-based detection system for immediate threat identification
 
 ```mermaid
@@ -60,7 +62,7 @@ HEUR["Heuristic Scanner<br/>heuristics.py"]
 DATA["Scam Dataset<br/>scam_dataset.json"]
 end
 subgraph "Cloud AI"
-LLM["qwen3.7-plus via DashScope"]
+LLM["qwen-max via DashScope"]
 end
 CS --> |"Extract links via DOM queries"| CS
 CS --> |"chrome.runtime.sendMessage"| BSW
@@ -68,6 +70,7 @@ POP --> |"Direct fetch (privileged)"| API
 BSW --> |"POST /scan_links"| API
 API --> |"Run heuristic scan"| HEUR
 API --> |"AI analysis if needed"| LLM
+CS --> |"Broadcast stats"| POP
 ```
 
 **Diagram sources**
@@ -80,18 +83,18 @@ API --> |"AI analysis if needed"| LLM
 - [manifest.json:1-29](file://extension/manifest.json#L1-L29)
 
 ## Core Components
-- **Simplified Content Script**: Basic DOM query functionality to extract all visible links from web pages using `document.querySelectorAll("a")`
+- **Enhanced Content Script**: Advanced DOM query functionality with real-time link extraction, interactive visual feedback, and modal display system
 - **Streamlined Background Service Worker**: Handles batch link analysis requests and communicates with backend API
 - **Enhanced Heuristic Scanning Engine**: Comprehensive rule-based detection system identifying suspicious patterns in URLs including sophisticated TLD detection, typosquatting, shortened URLs, and scam keywords
-- **AI-Powered Analysis Backend**: Integrates heuristic results with advanced AI analysis through qwen3.7-plus model for comprehensive threat assessment
-- **Popup Interface**: Manual scanning capability for individual page URLs
+- **AI-Powered Analysis Backend**: Integrates heuristic results with advanced AI analysis through qwen-max model for comprehensive threat assessment
+- **Interactive Popup Interface**: Manual scanning capability with live statistics monitoring and detailed result presentation
 
 Key responsibilities:
-- **content.js**: Extract links from DOM and send to background service worker
-- **background.js**: Batch processing and backend communication
+- **content.js**: Extract links from DOM, apply interactive visual markings, and manage modal displays
+- **background.js**: Batch processing and backend communication with error handling
 - **heuristics.py**: Immediate threat detection using predefined rules
 - **main.py**: API endpoints coordinating heuristic and AI analysis
-- **popup.js**: User interface for manual scanning
+- **popup.js**: User interface for manual scanning and live statistics monitoring
 
 **Section sources**
 - [content.js:12-43](file://extension/content.js#L12-L43)
@@ -101,7 +104,7 @@ Key responsibilities:
 - [popup.js:7-36](file://extension/popup.js#L7-L36)
 
 ## Architecture Overview
-The simplified architecture focuses on efficient link extraction and comprehensive backend analysis:
+The enhanced architecture focuses on efficient link extraction, comprehensive backend analysis, and interactive user feedback:
 
 ```mermaid
 sequenceDiagram
@@ -110,8 +113,9 @@ participant CS as "Content Script<br/>content.js"
 participant BSW as "Background Service Worker<br/>background.js"
 participant BE as "FastAPI Server<br/>main.py"
 participant HEUR as "Heuristic Scanner<br/>heuristics.py"
-participant AI as "qwen3.7-plus (DashScope)"
-Note over CS,BE : Simplified Link Analysis Process
+participant AI as "qwen-max (DashScope)"
+Note over CS,BE : Enhanced Link Analysis Process
+CS->>CS : Scan main page URL first
 CS->>CS : Extract links via DOM queries
 CS->>BSW : sendMessage({action : "scanPageLinks", links})
 BSW->>BE : POST /scan_links {urls}
@@ -120,12 +124,14 @@ HEUR-->>BE : status, score, reasons
 alt Heuristic flags detected
 BE-->>BSW : Return heuristic result
 else No heuristic flags
-BE->>AI : chat.completions(model="qwen3.7-plus")
-AI-->>BE : JSON {status, risk_score, explanation}
+BE->>AI : chat.completions(model="qwen-max")
+AI-->>BE : JSON {status, risk_score, explanation, reasons}
 BE-->>BSW : Combined result
 end
 BSW-->>CS : Array of analysis results
-CS->>CS : Apply inline warnings to links
+CS->>CS : Apply interactive inline warnings
+CS->>CS : Show detail modal on badge click
+CS->>POP : Broadcast real-time statistics
 ```
 
 **Diagram sources**
@@ -136,31 +142,34 @@ CS->>CS : Apply inline warnings to links
 
 ## Detailed Component Analysis
 
-### Simplified Content Script Implementation
-The content script provides basic link extraction functionality using straightforward DOM queries:
+### Enhanced Content Script Implementation
+The content script provides sophisticated link extraction functionality with interactive visual feedback:
 
-**Link Extraction Logic**:
-- Uses `document.querySelectorAll("a")` to find all anchor elements on the page
-- Maps extracted elements to their href attributes
-- Filters for valid HTTP(S) links only
-- Sends collected links to background service worker for analysis
+**Advanced Link Extraction Logic**:
+- Uses `document.querySelectorAll("a[href]")` to find all anchor elements with href attributes
+- Validates external links by filtering out internal navigation, JavaScript protocols, and same-origin domains
+- Implements WeakSet for memory-efficient element tracking and Set for URL deduplication
+- Sends collected links to background service worker for analysis with timeout handling
 
-**Enhanced Visual Feedback System**:
+**Interactive Visual Feedback System**:
 - Applies inline styling directly to detected links with sophisticated visual indicators
-- Red borders with 🚨 badges for Dangerous links, orange borders with ⚠️ badges for Suspicious links
+- Red borders with 🚨 [DANGEROUS SCAN] badges for Dangerous links, amber borders with ⚠️ [SUSPICIOUS SCAN] badges for Suspicious links
+- Clickable badges that open comprehensive detail modals with full threat analysis
 - Tooltip integration showing risk assessment details with color-coded status
-- Simple and effective visual indicators without complex DOM manipulation
+- Idempotent marking via data-scrollguard-marked attribute prevents duplicate processing
 
 ```mermaid
 flowchart TD
-Start(["Page Load"]) --> QueryDOM["Query document.querySelectorAll('a')"]
-QueryDOM --> MapHrefs["Map to href attributes"]
-MapHrefs --> FilterHTTP{"Filter http(s) links"}
+Start(["Page Load"]) --> ScanMain["Scan main page URL"]
+ScanMain --> QueryDOM["Query document.querySelectorAll('a[href]')"]
+QueryDOM --> Validate{"Validate external links"}
+Validate --> FilterHTTP{"Filter http(s) links"}
 FilterHTTP --> SendMsg["Send to background service worker"]
 SendMsg --> ReceiveResults["Receive analysis results"]
-ReceiveResults --> ApplyStyles{"Apply inline styles"}
-ApplyStyles --> AddTooltips["Add tooltip information"]
-AddTooltips --> End(["Protection Active"])
+ReceiveResults --> ApplyStyles{"Apply interactive styles"}
+ApplyStyles --> AddBadges["Add clickable badges"]
+AddBadges --> ShowModal["Show detail modal on click"]
+ShowModal --> End(["Protection Active"])
 ```
 
 **Diagram sources**
@@ -282,7 +291,7 @@ The backend integrates heuristic results with advanced AI analysis:
 **Enhanced Prompt Engineering Strategy**:
 - System prompt defines ScrollGuard AI role as cybersecurity expert specializing in online scams, phishing links, and fake giveaways targeting social media users
 - Structured output schema ensures consistent JSON responses with status, score, explanation, and reasons fields
-- Clear status definitions guide AI decision-making with specific criteria for Safe (0-25), Suspicious (26-69), and Dangerous (70-100) classifications
+- Clear status definitions guide AI decision-making with specific criteria for Safe (0-15), Suspicious (26-69), and Dangerous (70-100) classifications
 - Platform context provided for more accurate threat assessment
 
 **Robust Error Handling and Fallbacks**:
@@ -333,33 +342,192 @@ FastAPIApp --> OpenAIClient : "calls model"
 - [main.py:110-149](file://backend/main.py#L110-L149)
 - [main.py:71-108](file://backend/main.py#L71-L108)
 
-### Popup Interface for Manual Scanning
-The popup provides manual scanning capabilities for individual page URLs:
+### Interactive Detail Modal System
+The content script implements a sophisticated modal system for displaying comprehensive threat analysis:
 
-**Enhanced User Interaction Flow**:
-- Click "Scan Current Page" button to initiate analysis with loading states
-- Retrieves active tab URL via Chrome extension API
-- Sends single URL to background service worker for processing
-- Displays results with color-coded status indicators and detailed explanations
+**Modal Features**:
+- Full-screen overlay with backdrop blur effect for focus isolation
+- Dynamic header with threat level indicators (🚨 for Dangerous, ⚠️ for Suspicious)
+- Color-coded border styling based on threat severity
+- Comprehensive information display including scanned URL, risk score, AI explanation, and specific flagged reasons
+- Interactive action buttons: "Close / Stay Safe" and "Proceed Anyway"
+- Keyboard accessibility and click-outside-to-close functionality
 
-**Improved Result Display**:
-- Color-coded text output with styled badges (green for Safe, orange for Suspicious, red for Dangerous)
-- Risk score display alongside status information with formatted labels
-- Clean, minimal interface focused on essential information with responsive design
-- Loading spinner during analysis and error state handling
+**Modal Data Structure**:
+- Status field indicating threat level (Dangerous/Suspicious)
+- URL field showing the analyzed link
+- Score field displaying numerical risk assessment (0-100)
+- Explanation field containing AI-generated threat analysis
+- Reasons field listing specific detection triggers
 
 **Section sources**
-- [popup.js:7-139](file://extension/popup.js#L7-L139)
-- [popup.html:187-205](file://extension/popup.html#L187-L205)
+- [content.js:134-396](file://extension/content.js#L134-L396)
+
+## Enhanced Backend Classification System
+
+The backend has been significantly enhanced with a sophisticated classification system that combines rule-based heuristics with AI-powered analysis for maximum accuracy.
+
+### High-Precision Classification Rules
+
+The system now implements precise classification thresholds with clear boundaries:
+
+- **Dangerous (70-100)**: Immediate threats requiring urgent user attention
+- **Suspicious (26-69)**: Potentially harmful content requiring caution
+- **Safe (0-15)**: Verified safe content with minimal risk
+
+### Enhanced System Prompt Engineering
+
+The system prompt has been completely redesigned to provide:
+
+**Strict Output Schema Enforcement**:
+```json
+{
+  "status": "Safe" | "Suspicious" | "Dangerous",
+  "score": <integer 0-100>,
+  "explanation": "<1-2 sentence plain-text summary>",
+  "reasons": ["<reason 1>", "<reason 2>", ...]
+}
+```
+
+**Comprehensive Classification Guidelines**:
+- **Dangerous Patterns**: Fake government benefit schemes, credential harvesting, fake lottery scams, typosquatting, bank impersonation, deeply nested subdomains
+- **Suspicious Indicators**: Get-rich-quick schemes, URL shorteners with urgency, high-pressure language, unrealistic financial promises
+- **Safe Content**: Standard websites, official brand domains, legitimate educational pages, benign shortened links
+
+**Few-Shot Learning Examples**:
+The system includes three detailed examples demonstrating proper classification:
+1. **Dangerous Example**: Government aid scam using .tk domain with credential harvesting
+2. **Suspicious Example**: URL shortener with get-rich-quick claims and urgency tactics  
+3. **Safe Example**: Legitimate educational event registration on official domain
+
+### Bias Rules and Decision Logic
+
+The system implements intelligent bias rules:
+- When uncertain between Safe and Suspicious, default to Safe
+- When clear Dangerous patterns are detected, must return Dangerous without downgrading
+- Prioritizes user safety over false negatives
+
+**Section sources**
+- [main.py:64-177](file://backend/main.py#L64-L177)
+- [main.py:194-260](file://backend/main.py#L194-L260)
+
+## Main Page Scanning Capability
+
+A new main-page scanning capability has been added to analyze the current page URL before examining individual links, providing comprehensive protection against malicious landing pages.
+
+### Main Page Analysis Workflow
+
+The enhanced content script now performs a three-stage initialization process:
+
+1. **Main Page Scan**: Analyzes `window.location.href` before any other processing
+2. **Link Extraction**: Processes all visible links on the page
+3. **Dynamic Monitoring**: Watches for newly inserted content
+
+### Warning Banner System
+
+When the main page itself is flagged as dangerous or suspicious, the system injects a prominent warning banner:
+
+**Banner Features**:
+- Fixed positioning at the top of the page with high z-index
+- Color-coded gradients (red for dangerous, amber for suspicious)
+- Shield/warning icons based on threat level
+- Dismissible with X button for user control
+- Includes risk score and AI-generated explanation
+- Prevents duplicate banner injection
+
+**Visual Design**:
+- **Dangerous Pages**: Red gradient background with 🚨 icon and "This page is DANGEROUS" headline
+- **Suspicious Pages**: Amber gradient background with ⚠️ icon and "This page is SUSPICIOUS" headline
+- **Risk Display**: Shows numerical score (0-100) with AI explanation
+- **Dismiss Functionality**: Allows users to close the banner if they choose to proceed
+
+### Allowlist Integration
+
+The main page scanner respects the existing allowlist system, automatically skipping trusted domains to avoid unnecessary scanning and potential performance issues.
+
+**Section sources**
+- [content.js:186-307](file://extension/content.js#L186-L307)
+- [content.js:745-747](file://extension/content.js#L745-L747)
+
+## Interactive User Interface System
+
+### Inline Visual Marking System
+The content script provides sophisticated inline visual feedback for detected threats:
+
+**Visual Indicators**:
+- **Dangerous Links**: Red outline (3px solid #dc2626) with red background tint (rgba(220, 38, 38, 0.08)) and 🚨 [DANGEROUS SCAN] badge
+- **Suspicious Links**: Amber outline (3px solid #d97706) with amber background tint (rgba(217, 119, 6, 0.08)) and ⚠️ [SUSPICIOUS SCAN] badge
+- **Clickable Badges**: Interactive badges with hover effects and tooltip information showing risk scores
+- **Event Prevention**: Badge clicks are intercepted with preventDefault and stopPropagation to prevent accidental navigation
+
+**Badge Implementation**:
+- Dynamically created span elements inserted after target links
+- Styled with modern CSS properties including border-radius, box-shadow, and custom fonts
+- Responsive design adapting to different screen sizes
+- Persistent state via data-scrollguard-marked attribute preventing duplicate processing
+
+**Section sources**
+- [content.js:400-474](file://extension/content.js#L400-L474)
+
+## Real-Time Statistics Tracking
+
+### Live Statistics Broadcasting
+The system implements real-time statistics tracking and broadcasting between content scripts and popup interfaces:
+
+**Statistics Collection**:
+- **Total Scanned**: Counter tracking all unique URLs processed by the content script
+- **Total Flagged**: Counter tracking URLs identified as Dangerous or Suspicious
+- **Persistent Storage**: Statistics stored in chrome.storage.local for cross-tab persistence
+- **Real-time Updates**: Live broadcasting to open popup windows via chrome.runtime.sendMessage
+
+**Popup Integration**:
+- **Live Dashboard**: Popup displays current scanning statistics with animated status indicators
+- **Auto-refresh**: Automatic updates when new scanning activity occurs
+- **Status Monitoring**: Visual indicators showing whether scanning is active or waiting
+- **Manual Override**: Fallback scanning capability for individual tab analysis
+
+**Communication Flow**:
+```mermaid
+flowchart LR
+CS["Content Script"] --> Store["chrome.storage.local"]
+CS --> Msg["chrome.runtime.sendMessage"]
+Store --> POP["Popup Interface"]
+Msg --> POP
+POP --> Display["Live Statistics Display"]
+```
+
+**Section sources**
+- [content.js:478-499](file://extension/content.js#L478-L499)
+- [popup.js:27-47](file://extension/popup.js#L27-L47)
+
+### Enhanced Popup Interface
+The popup provides a comprehensive dashboard for monitoring scanning activity:
+
+**Dashboard Features**:
+- **Active Tab URL Display**: Shows current tab URL with fallback handling for internal pages
+- **Status Banner**: Animated pulse indicator showing active scanning status
+- **Statistics Chips**: Three-chip layout displaying Links Scanned, Flagged count, and Status
+- **Manual Scan Button**: Fallback scanning capability with loading states and error handling
+- **Result Cards**: Detailed presentation of analysis results with color-coded status badges
+
+**Interactive Elements**:
+- **Loading States**: Spinner animation during analysis with button disablement
+- **Error Handling**: Graceful error messages with user-friendly descriptions
+- **Responsive Design**: Mobile-friendly layout adapting to different screen sizes
+- **Accessibility**: Proper ARIA labels and keyboard navigation support
+
+**Section sources**
+- [popup.js:9-167](file://extension/popup.js#L9-L167)
+- [popup.html:276-336](file://extension/popup.html#L276-L336)
 
 ## Dependency Analysis
-The simplified architecture maintains essential dependencies while reducing complexity:
+The enhanced architecture maintains essential dependencies while adding sophisticated user interaction capabilities:
 
 - **Extension Dependencies**:
   - manifest.json for permissions and service worker registration
-  - content.js for basic DOM link extraction with enhanced visual feedback
+  - content.js for advanced DOM link extraction with interactive visual feedback
   - background.js for backend communication and batch processing
-  - popup.js for manual scanning interface with improved UI
+  - popup.js for manual scanning interface with live statistics monitoring
 - **Backend Dependencies**:
   - FastAPI and CORS middleware for request handling
   - OpenAI client configured for DashScope endpoint with rate limiting
@@ -367,6 +535,7 @@ The simplified architecture maintains essential dependencies while reducing comp
   - heuristics.py for comprehensive rule-based threat detection
 - **Communication Dependencies**:
   - chrome.runtime API for service worker messaging
+  - chrome.storage API for persistent statistics storage
   - fetch API for HTTP requests in privileged context
 
 ```mermaid
@@ -375,11 +544,12 @@ MAN["manifest.json"] --> BSW["background.js"]
 MAN --> CS["content.js"]
 MAN --> POPJS["popup.js"]
 CS --> BSW["chrome.runtime.sendMessage"]
+CS --> STORE["chrome.storage.local"]
+STORE --> POPJS
 BSW --> API["main.py"]
 POPJS --> API["direct fetch"]
 API --> HEUR["heuristics.py"]
 API --> OPENAI["OpenAI Client -> DashScope"]
-TEST["test_scan.py"] --> API
 ```
 
 **Diagram sources**
@@ -394,10 +564,10 @@ TEST["test_scan.py"] --> API
 - [main.py:1-19](file://backend/main.py#L1-L19)
 
 ## Performance Considerations
-The simplified architecture optimizes performance through strategic design choices:
+The enhanced architecture optimizes performance through strategic design choices:
 
 **Enhanced Content Script Efficiency**:
-- Uses efficient DOM queries with `document.querySelectorAll("a")` and WeakSet for memory-efficient element tracking
+- Uses efficient DOM queries with `document.querySelectorAll("a[href]")` and WeakSet for memory-efficient element tracking
 - Minimal JavaScript overhead with simple filtering logic and URL deduplication
 - Throttled MutationObserver with debouncing at 300ms to prevent excessive processing
 - Lightweight inline styling for visual feedback with idempotent marking
@@ -423,7 +593,7 @@ The simplified architecture optimizes performance through strategic design choic
 
 **Caching Strategies**:
 - Client-side URL deduplication using Set to avoid redundant analyses
-- No persistent caching implemented; consider adding localStorage for repeated URL analyses
+- Persistent statistics storage using chrome.storage.local for cross-tab sharing
 - Backend could implement response caching for identical requests
 - Heuristic results are deterministic and could be cached server-side
 
@@ -440,13 +610,15 @@ The simplified architecture optimizes performance through strategic design choic
 - [heuristics.py:4-48](file://backend/heuristics.py#L4-L48)
 
 ## Troubleshooting Guide
-Common issues and solutions for the simplified architecture:
+Common issues and solutions for the enhanced architecture:
 
 **Enhanced Content Script Issues**:
-- **Links Not Being Extracted**: Verify DOM contains anchor elements and check console for errors
+- **Links Not Being Extracted**: Verify DOM contains anchor elements with href attributes and check console for errors
 - **Visual Styling Not Applied**: Ensure CSS selectors match actual link elements and check for existing scrollguard markings
 - **MutationObserver Not Working**: Check observer configuration and debouncing logic
 - **Duplicate Link Processing**: Verify WeakSet and Set usage for proper deduplication
+- **Modal Not Appearing**: Check event listener attachment and ensure badge click events are properly handled
+- **Main Page Banner Not Showing**: Verify allowlist configuration and check if page URL is being properly scanned
 
 **Background Service Worker Problems**:
 - **Messages Not Received**: Verify chrome.runtime.onMessage listener is properly registered
@@ -471,6 +643,13 @@ Common issues and solutions for the simplified architecture:
 - **Results Not Displaying**: Verify message passing and result formatting
 - **Permission Errors**: Ensure proper manifest permissions are set
 - **Loading States**: Check spinner implementation and button disable logic
+- **Statistics Not Updating**: Verify chrome.storage.local communication and message broadcasting
+
+**Real-Time Statistics Issues**:
+- **Stats Not Persisting**: Check chrome.storage.local permissions and storage quotas
+- **Broadcasting Failures**: Verify chrome.runtime.sendMessage is working correctly
+- **Popup Not Refreshing**: Check message listener registration and update logic
+- **Cross-Tab Communication**: Ensure proper origin policies and extension permissions
 
 **Evaluation and Testing**:
 - **Test Script Failures**: Verify backend is running and accessible
@@ -486,24 +665,44 @@ Common issues and solutions for the simplified architecture:
 - [popup.js:7-36](file://extension/popup.js#L7-L36)
 
 ## Conclusion
-ScrollGuard AI delivers a streamlined threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis. The enhanced heuristic scanning engine provides sophisticated rule-based detection with comprehensive TLD monitoring, typosquatting protection, and keyword analysis. The simplified architecture focuses on essential functionality while maintaining effectiveness in detecting suspicious URLs through integrated heuristic scanning and AI-powered analysis. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
+ScrollGuard AI delivers an enhanced threat detection system that effectively combines simple browser-based link extraction with comprehensive backend analysis and sophisticated user interaction. The enhanced heuristic scanning engine provides sophisticated rule-based detection with comprehensive TLD monitoring, typosquatting protection, and keyword analysis. The new main-page scanning capability ensures protection against malicious landing pages before users interact with any links. The interactive user interface system provides real-time visual feedback through inline markings and detailed modal displays. The enhanced backend classification system with high-precision rules and few-shot learning examples significantly improves threat detection accuracy. The real-time statistics tracking ensures users can monitor scanning activity across all tabs through a unified dashboard interface. The modular design enables easy customization of detection rules and analysis parameters, while the efficient communication patterns ensure responsive user experience. Future enhancements may include expanded heuristic rules, improved visual feedback mechanisms, additional caching strategies, and enhanced error reporting to further optimize performance and usability.
 
 ## Appendices
 
 ### Example Workflows
 **Automatic Link Analysis Workflow**:
-- On page load, content script extracts all visible links using DOM queries with WeakSet deduplication
+- On page load, content script scans main page URL first, then extracts all visible links using DOM queries with WeakSet deduplication
 - Links are sent to background service worker for batch processing with timeout handling
 - Backend runs comprehensive heuristic scan first for immediate threat identification
 - AI analysis performed only when heuristic scan returns safe results with rate limiting
 - Results returned with enhanced inline visual indicators applied to links
+- Interactive badges displayed for flagged links with modal detail access
+
+**Main Page Protection Workflow**:
+- Content script immediately scans current page URL upon page load
+- If main page is flagged as dangerous or suspicious, prominent warning banner is injected
+- Banner includes risk score, AI explanation, and dismiss functionality
+- Trusted domains are automatically skipped to avoid unnecessary scanning
+- Users receive immediate visual feedback about page safety before interacting with any content
+
+**Interactive Modal Workflow**:
+- User clicks on suspicious link badge to view detailed threat analysis
+- Modal opens with comprehensive information including URL, risk score, AI explanation, and specific reasons
+- User can choose to stay safe (close modal) or proceed anyway (open URL in new tab)
+- Modal includes keyboard accessibility and click-outside-to-close functionality
 
 **Manual Popup Analysis Workflow**:
-- User clicks "Scan Current Page" button in popup with loading state management
+- User clicks "Scan Active Tab" button in popup with loading state management
 - Popup retrieves active tab URL and sends to background service worker
 - Background service worker processes request through backend API with error handling
 - Results displayed with color-coded status indicators and detailed explanations
 - Risk scores and explanations provided for each analyzed URL with formatted presentation
+
+**Real-Time Statistics Workflow**:
+- Content script tracks scanning activity and persists statistics to chrome.storage.local
+- Statistics broadcast to open popup windows via chrome.runtime.sendMessage
+- Popup displays live updates with animated status indicators
+- Cross-tab synchronization ensures consistent statistics across all extension instances
 
 **Enhanced Heuristic Analysis Workflow**:
 - URL parsed and components extracted (domain, path, query)
@@ -512,9 +711,16 @@ ScrollGuard AI delivers a streamlined threat detection system that effectively c
 - Classification determined by threshold-based scoring (Safe < 30, Suspicious 30-69, Dangerous ≥ 70)
 - Detailed reasons provided for each detected threat indicator
 
+**Enhanced AI Classification Workflow**:
+- System prompt provides strict JSON schema and comprehensive classification guidelines
+- Few-shot learning examples demonstrate proper classification patterns
+- High-precision rules ensure accurate categorization into Safe (0-15), Suspicious (26-69), or Dangerous (70-100)
+- Bias rules prioritize user safety while minimizing false positives
+- Robust error handling ensures graceful degradation when AI service is unavailable
+
 **Section sources**
 - [content.js:12-43](file://extension/content.js#L12-L43)
 - [background.js:39-44](file://extension/background.js#L39-L44)
-- [popup.js:7-139](file://extension/popup.js#L7-L139)
+- [popup.js:7-167](file://extension/popup.js#L7-L167)
 - [main.py:110-149](file://backend/main.py#L110-L149)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)

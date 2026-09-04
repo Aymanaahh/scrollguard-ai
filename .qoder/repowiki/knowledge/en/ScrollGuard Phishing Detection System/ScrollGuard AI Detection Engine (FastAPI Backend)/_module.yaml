@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: backend
-title: ScrollGuard AI URL Classification Backend
+title: ScrollGuard AI Detection Engine (FastAPI Backend)
 scope:
     - backend/
 source_files: []
