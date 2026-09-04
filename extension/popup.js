@@ -24,25 +24,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ── Retrieve scan stats from chrome.storage (set by content.js) ────────
+  // ── Stats display (single source for storage load + live updates) ────
+  function updateStats(scanned, flagged) {
+    statScanned.textContent = scanned;
+    statFlagged.textContent = flagged;
+    statStatus.textContent = scanned > 0 ? "Active" : "Waiting";
+  }
+
+  // Initial values from chrome.storage (persisted by content.js)
   chrome.storage.local.get(
     ["sg_linksScanned", "sg_linksFlagged"],
-    (data) => {
-      const scanned = data.sg_linksScanned || 0;
-      const flagged = data.sg_linksFlagged || 0;
-
-      statScanned.textContent = scanned;
-      statFlagged.textContent = flagged;
-      statStatus.textContent = scanned > 0 ? "Active" : "Waiting";
-    }
+    (data) => updateStats(data.sg_linksScanned || 0, data.sg_linksFlagged || 0)
   );
 
-  // ── Listen for live stat updates from content.js ───────────────────────
+  // Live updates broadcast by content.js after every scan batch
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === "updateStats") {
-      statScanned.textContent = message.scanned || 0;
-      statFlagged.textContent = message.flagged || 0;
-      statStatus.textContent = (message.scanned || 0) > 0 ? "Active" : "Waiting";
+      updateStats(message.scanned || 0, message.flagged || 0);
     }
   });
 

@@ -17,7 +17,8 @@
  *      were a leading source of false positives.
  *
  * All injected CSS classes are prefixed with "sg-ai-" to prevent host-page
- * stylesheet collisions.
+ * stylesheet collisions.  UI components share one dark "raven" theme
+ * (see THEME below) and animate via a single idempotent stylesheet.
  */
 
 (function () {
@@ -112,6 +113,104 @@
     return AUTH_PATH_KEYWORDS.some((k) => lower.includes(k));
   }
 
+  // ── Theme & injected styles ────────────────────────────────────────────────
+
+  /**
+   * Single source of truth for every colour used by the injected UI
+   * (banner, modal, badges, outlines).  Keeping the palette in one place
+   * guarantees a consistent "Team Raven" dark look and removes the
+   * duplicated status-based ternaries that used to live in each builder.
+   */
+  const THEME = {
+    fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+    Dangerous: {
+      gradient: "linear-gradient(135deg, #991b1b 0%, #dc2626 100%)",
+      accent: "#f87171",
+      outline: "3px solid #dc2626",
+      tint: "rgba(220, 38, 38, 0.10)",
+      badgeBg: "#dc2626",
+      badgeColor: "#ffffff",
+      badgeShadow: "0 2px 10px rgba(220, 38, 38, 0.45)",
+      glow: "rgba(220, 38, 38, 0.30)",
+      icon: "\uD83D\uDEA8",
+      badgeText: " \uD83D\uDEA8 [DANGEROUS SCAN]",
+    },
+    Suspicious: {
+      gradient: "linear-gradient(135deg, #92400e 0%, #d97706 100%)",
+      accent: "#fbbf24",
+      outline: "3px solid #d97706",
+      tint: "rgba(217, 119, 6, 0.10)",
+      badgeBg: "#fbbf24",
+      badgeColor: "#1e293b",
+      badgeShadow: "0 2px 10px rgba(217, 119, 6, 0.40)",
+      glow: "rgba(217, 119, 6, 0.28)",
+      icon: "\u26A0\uFE0F",
+      badgeText: " \u26A0\uFE0F [SUSPICIOUS SCAN]",
+    },
+  };
+
+  /**
+   * Resolve the theme palette for a threat status.
+   *
+   * @param {string} status - "Dangerous" or "Suspicious".
+   * @returns {Object} Theme entry with colours, icons, and badge text.
+   */
+  function threatTheme(status) {
+    return status === "Dangerous" ? THEME.Dangerous : THEME.Suspicious;
+  }
+
+  /**
+   * Inject the ScrollGuard stylesheet once per page (idempotent).
+   *
+   * Holds the keyframe animations (modal fade/scale-in, badge pop-in,
+   * banner slide-down) and the hover transitions for badges/buttons.
+   * Every rule only touches properties that are NOT set inline, so
+   * host-page stylesheets can never break the injected UI and the
+   * inline base styles never block the animations.
+   */
+  function ensureStylesheet() {
+    if (document.getElementById("sg-ai-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "sg-ai-styles";
+    style.textContent = [
+      "@keyframes sgAiFadeIn { from { opacity: 0; } to { opacity: 1; } }",
+      "@keyframes sgAiModalIn {",
+      "  from { opacity: 0; transform: translateY(14px) scale(0.96); }",
+      "  to { opacity: 1; transform: translateY(0) scale(1); }",
+      "}",
+      "@keyframes sgAiBadgePop {",
+      "  from { opacity: 0; transform: scale(0.6); }",
+      "  70% { transform: scale(1.08); }",
+      "  to { opacity: 1; transform: scale(1); }",
+      "}",
+      "@keyframes sgAiBannerDown {",
+      "  from { transform: translateY(-100%); }",
+      "  to { transform: translateY(0); }",
+      "}",
+      ".sg-ai-page-banner { animation: sgAiBannerDown 0.25s ease-out; }",
+      ".sg-ai-modal-overlay { animation: sgAiFadeIn 0.2s ease-out; }",
+      ".sg-ai-modal { animation: sgAiModalIn 0.22s ease-out; }",
+      ".sg-ai-badge {",
+      "  animation: sgAiBadgePop 0.25s ease-out;",
+      "  transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out;",
+      "}",
+      ".sg-ai-badge:hover {",
+      "  transform: translateY(-1px) scale(1.06);",
+      "  filter: brightness(1.12);",
+      "}",
+      ".sg-ai-btn { transition: all 0.2s ease-in-out; }",
+      ".sg-ai-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }",
+      ".sg-ai-btn:active { transform: translateY(0) scale(0.97); }",
+      ".sg-ai-banner-dismiss { transition: background 0.2s ease-in-out; }",
+      ".sg-ai-banner-dismiss:hover {",
+      "  background: rgba(255, 255, 255, 0.35) !important;",
+      "}",
+    ].join("\n");
+
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   // ── Link extraction & validation ───────────────────────────────────────────
 
   /**
@@ -163,30 +262,48 @@
   }
 
   /**
-   * Collect all <a> elements in the given root whose href passes validation
-   * and that haven't been processed yet.  Returns a deduplicated array of
-   * { element, href } objects (one per unique URL — subsequent duplicates
-   * are skipped from the batch but still marked via processedAnchors).
+   * Collect all <a> elements in the given root(s) whose href passes
+   * validation and that haven't been processed yet.  Returns a
+   * deduplicated array of { element, href } objects (one per unique URL —
+   * subsequent duplicates are skipped from the batch but still marked via
+   * processedAnchors).
+   *
+   * Accepts a single root or an array of roots so a whole mutation burst
+   * can be coalesced into ONE scan batch.
+   *
+   * @param {Element|Element[]} roots
    */
-  function collectNewLinks(root) {
-    const anchors =
-      root.tagName === "A"
-        ? [root]
-        : Array.from(root.querySelectorAll ? root.querySelectorAll("a[href]") : []);
-
+  function collectNewLinks(roots) {
+    const rootList = Array.isArray(roots) ? roots : [roots];
     const batch = [];
 
-    for (const anchor of anchors) {
-      if (processedAnchors.has(anchor)) continue;
-      processedAnchors.add(anchor);
+    for (const root of rootList) {
+      if (!root || root.nodeType !== Node.ELEMENT_NODE) continue;
 
-      const href = anchor.href;
-      if (!isValidExternalLink(href)) continue;
+      // Cheap pre-filter: skip subtrees that cannot contain anchors.
+      // On heavy social feeds most inserted nodes are text/media/decor,
+      // so this keeps the observer path close to O(1) per mutation.
+      const isAnchor = root.tagName === "A";
+      if (!isAnchor && !(root.querySelector && root.querySelector("a[href]"))) {
+        continue;
+      }
 
-      // URL-level dedup: only add to batch if not yet scanned
-      if (!scannedUrls.has(href)) {
-        scannedUrls.add(href);
-        batch.push({ element: anchor, href });
+      const anchors = isAnchor
+        ? [root]
+        : Array.from(root.querySelectorAll("a[href]"));
+
+      for (const anchor of anchors) {
+        if (processedAnchors.has(anchor)) continue;
+        processedAnchors.add(anchor);
+
+        const href = anchor.href;
+        if (!isValidExternalLink(href)) continue;
+
+        // URL-level dedup: only add to batch if not yet scanned
+        if (!scannedUrls.has(href)) {
+          scannedUrls.add(href);
+          batch.push({ element: anchor, href });
+        }
       }
     }
 
@@ -248,8 +365,9 @@
    *   Dangerous  → red banner with shield icon
    *   Suspicious → amber banner with warning icon
    *
-   * Includes a dismiss (X) button.  All styles are inline and classes
-   * prefixed with "sg-ai-" for isolation from the host stylesheet.
+   * Includes a dismiss (X) button and slides in via the injected
+   * stylesheet animation.  All styles are inline and classes prefixed
+   * with "sg-ai-" for isolation from the host stylesheet.
    *
    * @param {Object} result - Backend result for the page URL.
    */
@@ -257,7 +375,7 @@
     // Prevent duplicate banners
     if (document.querySelector("[data-sg-ai-banner]")) return;
 
-    const isDangerous = result.status === "Dangerous";
+    const theme = threatTheme(result.status);
     const score = result.score || 0;
 
     // ── Banner container ──
@@ -270,23 +388,21 @@
       left: "0",
       width: "100%",
       zIndex: "2147483646",
-      background: isDangerous
-        ? "linear-gradient(135deg, #991b1b 0%, #dc2626 100%)"
-        : "linear-gradient(135deg, #92400e 0%, #d97706 100%)",
+      background: theme.gradient,
       color: "#ffffff",
       padding: "12px 50px 12px 16px",
-      fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: THEME.fontFamily,
       display: "flex",
       alignItems: "center",
       gap: "12px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+      boxShadow: "0 4px 14px rgba(0, 0, 0, 0.35)",
       fontSize: "13px",
       lineHeight: "1.4",
     });
 
     // Icon
     const icon = document.createElement("span");
-    icon.textContent = isDangerous ? "🚨" : "⚠️";
+    icon.textContent = theme.icon;
     Object.assign(icon.style, { fontSize: "22px", lineHeight: "1" });
     banner.appendChild(icon);
 
@@ -295,9 +411,8 @@
     textWrap.style.flex = "1";
 
     const headline = document.createElement("strong");
-    headline.textContent = isDangerous
-      ? "ScrollGuard AI: This page is DANGEROUS"
-      : "ScrollGuard AI: This page is SUSPICIOUS";
+    headline.textContent =
+      "ScrollGuard AI: This page is " + result.status.toUpperCase();
     Object.assign(headline.style, {
       fontSize: "14px",
       fontWeight: "700",
@@ -368,7 +483,7 @@
     const existing = document.querySelector(".sg-ai-modal-overlay");
     if (existing) existing.remove();
 
-    const isDangerous = data.status === "Dangerous";
+    const theme = threatTheme(data.status);
 
     // ── Overlay backdrop ──
     const overlay = document.createElement("div");
@@ -379,38 +494,38 @@
       left: "0",
       width: "100vw",
       height: "100vh",
-      background: "rgba(0, 0, 0, 0.55)",
+      background: "rgba(15, 23, 42, 0.72)",
+      backdropFilter: "blur(4px)",
+      webkitBackdropFilter: "blur(4px)",
       zIndex: "2147483647",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: THEME.fontFamily,
     });
 
-    // ── Modal container ──
+    // ── Modal container (dark "raven" surface) ──
     const modal = document.createElement("div");
     modal.className = "sg-ai-modal";
     Object.assign(modal.style, {
-      background: "#ffffff",
-      borderRadius: "12px",
+      background: "#18181b",
+      borderRadius: "14px",
       width: "420px",
       maxWidth: "90vw",
       maxHeight: "80vh",
       overflow: "auto",
-      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-      border: isDangerous ? "3px solid #dc2626" : "3px solid #d97706",
+      boxShadow: "0 24px 64px rgba(0, 0, 0, 0.6), 0 0 32px " + theme.glow,
+      border: "1px solid rgba(148, 163, 184, 0.18)",
     });
 
     // ── Header ──
     const header = document.createElement("div");
     header.className = "sg-ai-modal-header";
     Object.assign(header.style, {
-      background: isDangerous
-        ? "linear-gradient(135deg, #991b1b 0%, #dc2626 100%)"
-        : "linear-gradient(135deg, #92400e 0%, #d97706 100%)",
+      background: theme.gradient,
       color: "#ffffff",
       padding: "16px 20px",
-      borderRadius: "9px 9px 0 0",
+      borderRadius: "13px 13px 0 0",
       display: "flex",
       alignItems: "center",
       gap: "10px",
@@ -418,7 +533,7 @@
 
     const icon = document.createElement("span");
     icon.className = "sg-ai-modal-icon";
-    icon.textContent = isDangerous ? "🚨" : "⚠️";
+    icon.textContent = theme.icon;
     Object.assign(icon.style, { fontSize: "24px", lineHeight: "1" });
     header.appendChild(icon);
 
@@ -426,7 +541,7 @@
 
     const title = document.createElement("div");
     title.className = "sg-ai-modal-title";
-    title.textContent = isDangerous ? "DANGEROUS" : "SUSPICIOUS";
+    title.textContent = data.status.toUpperCase();
     Object.assign(title.style, {
       fontSize: "16px",
       fontWeight: "800",
@@ -472,7 +587,7 @@
     // URL field
     body.appendChild(buildModalField("Scanned URL", data.url, {
       wordBreak: "break-all",
-      color: "#1e40af",
+      color: "#7dd3fc",
       fontSize: "12px",
     }));
 
@@ -480,7 +595,7 @@
     body.appendChild(buildModalField("Risk Score", data.score + " / 100", {
       fontWeight: "700",
       fontSize: "18px",
-      color: isDangerous ? "#dc2626" : "#d97706",
+      color: theme.accent,
     }));
 
     // AI explanation
@@ -494,7 +609,7 @@
       Object.assign(reasonsLabel.style, {
         fontSize: "11px",
         fontWeight: "700",
-        color: "#64748b",
+        color: "#94a3b8",
         textTransform: "uppercase",
         letterSpacing: "0.5px",
         marginBottom: "6px",
@@ -506,7 +621,7 @@
         margin: "0 0 16px 0",
         padding: "0 0 0 18px",
         fontSize: "12px",
-        color: "#475569",
+        color: "#cbd5e1",
         lineHeight: "1.5",
       });
 
@@ -531,14 +646,14 @@
       gap: "10px",
     });
 
-    // "Close / Stay Safe" button
+    // "Close / Stay Safe" button (primary action)
     const staySafeBtn = document.createElement("button");
-    staySafeBtn.className = "sg-ai-btn-stay-safe";
+    staySafeBtn.className = "sg-ai-btn sg-ai-btn-stay-safe";
     staySafeBtn.textContent = "Close / Stay Safe";
     Object.assign(staySafeBtn.style, {
       flex: "1",
-      padding: "10px 16px",
-      background: "#2563eb",
+      padding: "11px 16px",
+      background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
       color: "#ffffff",
       border: "none",
       borderRadius: "8px",
@@ -546,6 +661,7 @@
       fontWeight: "600",
       cursor: "pointer",
       fontFamily: "inherit",
+      boxShadow: "0 2px 10px rgba(37, 99, 235, 0.35)",
     });
     staySafeBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -553,16 +669,16 @@
       overlay.remove();
     });
 
-    // "Proceed Anyway" button
+    // "Proceed Anyway" button (secondary, dark surface)
     const proceedBtn = document.createElement("button");
-    proceedBtn.className = "sg-ai-btn-proceed";
+    proceedBtn.className = "sg-ai-btn sg-ai-btn-proceed";
     proceedBtn.textContent = "Proceed Anyway";
     Object.assign(proceedBtn.style, {
       flex: "1",
-      padding: "10px 16px",
-      background: "#f1f5f9",
-      color: "#64748b",
-      border: "1px solid #cbd5e1",
+      padding: "11px 16px",
+      background: "#1e293b",
+      color: "#94a3b8",
+      border: "1px solid #334155",
       borderRadius: "8px",
       fontSize: "13px",
       fontWeight: "600",
@@ -594,7 +710,7 @@
   }
 
   /**
-   * Build a labelled field row for the modal body.
+   * Build a labelled field row for the modal body (dark theme colours).
    */
   function buildModalField(label, value, valueStyleOverrides) {
     const wrap = document.createElement("div");
@@ -606,7 +722,7 @@
     Object.assign(lbl.style, {
       fontSize: "11px",
       fontWeight: "700",
-      color: "#64748b",
+      color: "#94a3b8",
       textTransform: "uppercase",
       letterSpacing: "0.5px",
       marginBottom: "4px",
@@ -617,7 +733,7 @@
     val.className = "sg-ai-modal-field-value";
     Object.assign(val.style, {
       fontSize: "13px",
-      color: "#1e293b",
+      color: "#e2e8f0",
       lineHeight: "1.5",
     });
     if (valueStyleOverrides) {
@@ -653,43 +769,39 @@
 
     const status = result.status;
     const score = result.score || 0;
-    const isDangerous = status === "Dangerous";
+    const theme = threatTheme(status);
 
     // ── Link border + background tint ──
-    linkEl.style.outline = isDangerous
-      ? "3px solid #dc2626"
-      : "3px solid #d97706";
+    linkEl.style.outline = theme.outline;
     linkEl.style.outlineOffset = "2px";
     linkEl.style.borderRadius = "4px";
-    linkEl.style.backgroundColor = isDangerous
-      ? "rgba(220, 38, 38, 0.08)"
-      : "rgba(217, 119, 6, 0.08)";
+    linkEl.style.backgroundColor = theme.tint;
+    linkEl.style.transition =
+      "outline-color 0.2s ease-in-out, background-color 0.2s ease-in-out";
 
     // ── Inline badge ──
     const badge = document.createElement("span");
     badge.className = "sg-ai-badge";
-    badge.textContent = isDangerous
-      ? " \uD83D\uDEA8 [DANGEROUS SCAN]"
-      : " \u26A0\uFE0F [SUSPICIOUS SCAN]";
+    badge.textContent = theme.badgeText;
     badge.title = "ScrollGuard: Click for details (Risk " + score + "/100)";
 
     Object.assign(badge.style, {
       display: "inline-block",
       fontSize: "11px",
       fontWeight: "700",
-      fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: THEME.fontFamily,
       marginLeft: "4px",
       marginRight: "2px",
       padding: "2px 8px",
-      borderRadius: "4px",
+      borderRadius: "6px",
       verticalAlign: "middle",
       lineHeight: "1.4",
       whiteSpace: "nowrap",
       cursor: "pointer",
       userSelect: "none",
-      background: isDangerous ? "#dc2626" : "#fbbf24",
-      color: isDangerous ? "#ffffff" : "#1e293b",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+      background: theme.badgeBg,
+      color: theme.badgeColor,
+      boxShadow: theme.badgeShadow,
     });
 
     // ── Click event guard: prevent navigation + open modal ──
@@ -734,11 +846,13 @@
   }
 
   /**
-   * Collect new links from the given root, send them to the backend in a
-   * single batch, and apply inline markings for any flagged results.
+   * Collect new links from the given root(s), send them to the backend in
+   * a single batch, and apply inline markings for any flagged results.
+   *
+   * @param {Element|Element[]} roots - One root element or many.
    */
-  async function scanLinks(root) {
-    const newLinks = collectNewLinks(root || document.body);
+  async function scanLinks(roots) {
+    const newLinks = collectNewLinks(roots || document.body);
     if (newLinks.length === 0) return;
 
     const hrefs = newLinks.map((l) => l.href);
@@ -775,6 +889,15 @@
    * Watches for newly added DOM nodes and scans any <a> tags they contain.
    * Debounced at 300 ms to coalesce bursts of DOM mutations (e.g. when a
    * social-media feed inserts many posts at once).
+   *
+   * Efficiency guards:
+   *   - Mutations produced by ScrollGuard's own UI (badges, banner,
+   *     modal — all carry the "sg-ai-" class prefix or the
+   *     data-sg-ai-banner attribute) are ignored, so marking a link
+   *     never re-triggers the scanner.
+   *   - All pending roots are flushed through ONE scanLinks() call,
+   *     producing a single backend round-trip per mutation burst
+   *     instead of one request per inserted node.
    */
   let mutationTimer = null;
   const pendingRoots = new Set();
@@ -783,6 +906,17 @@
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+        // Skip nodes injected by ScrollGuard itself (cheap attribute
+        // checks only — no DOM traversal).
+        const cls = node.getAttribute("class");
+        if (
+          (typeof cls === "string" && cls.indexOf("sg-ai-") !== -1) ||
+          node.hasAttribute("data-sg-ai-banner")
+        ) {
+          continue;
+        }
+
         pendingRoots.add(node);
       }
     }
@@ -793,8 +927,9 @@
         pendingRoots.clear();
         mutationTimer = null;
 
-        for (const root of roots) {
-          scanLinks(root);
+        if (roots.length > 0) {
+          // One coalesced scan for every pending root.
+          scanLinks(roots);
         }
       }, 300);
     }
@@ -803,6 +938,14 @@
   // ── Initialization ─────────────────────────────────────────────────────────
 
   function init() {
+    // Brand styles + animations (idempotent, injected once per page)
+    ensureStylesheet();
+
+    // Single startup status log — the only non-error console output.
+    console.log(
+      "[ScrollGuard AI] Zero-click scanner active on " + window.location.hostname
+    );
+
     // 1. Scan the main page URL itself (skip if allowlisted)
     scanMainPage();
 

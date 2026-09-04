@@ -15,11 +15,12 @@ for deep analysis.
 import asyncio
 import json
 import os
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from heuristics import heuristic_scan
@@ -39,7 +40,7 @@ client = AsyncOpenAI(
 
 # ── FastAPI app ──────────────────────────────────────────────────────────────
 
-app = FastAPI(title="ScrollGuard AI Engine", version="2.0.0")
+app = FastAPI(title="ScrollGuard AI Engine", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,12 +53,24 @@ app.add_middleware(
 # ── Request / Response models ────────────────────────────────────────────────
 
 class AnalysisRequest(BaseModel):
-    url: str = ""
-    text: str = ""
-    platform: str = "Unknown"
+    url: str = Field(default="", max_length=2048)
+    text: str = Field(default="", max_length=4000)
+    platform: str = Field(default="Unknown", max_length=64)
+
 
 class URLBatch(BaseModel):
-    urls: list[str]
+    urls: list[str] = Field(max_length=100)
+
+
+class AnalysisResult(BaseModel):
+    """Strict response contract shared by /analyze and /scan_links."""
+
+    url: str
+    status: Literal["Safe", "Suspicious", "Dangerous", "Error"]
+    score: int = Field(ge=0, le=100)
+    explanation: str = ""
+    reasons: list[str] = Field(default_factory=list)
+
 
 # ── System prompt for the LLM ────────────────────────────────────────────────
 
@@ -71,9 +84,9 @@ below. Do NOT wrap the output in markdown code fences. Do NOT add \
 any text before or after the JSON. A malformed response is a \
 critical failure.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
  OUTPUT SCHEMA (strict — no extra fields)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 {
   "status": "Safe" | "Suspicious" | "Dangerous",
   "score": <integer 0-100>,
@@ -81,9 +94,9 @@ critical failure.
   "reasons": ["<reason 1>", "<reason 2>", ...]
 }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
  CLASSIFICATION RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 
 DANGEROUS (score 70-100) — you MUST use this tag when ANY of these apply:
   • Fake government benefit / aid schemes (e.g. BISP, Ehsaas, PM Kisan, \
@@ -120,9 +133,9 @@ SAFE (score 0-15) — use this tag for:
   • URLs that merely contain words like "free" or "login" as part of \
     a legitimate domain's normal structure.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
  CRITICAL ENFORCEMENT — DANGEROUS STATUS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 
 You MUST use the "Dangerous" status for fake government schemes \
 (e.g., BISP/Ehsaas), fake lotteries, and credential harvesting \
@@ -134,9 +147,9 @@ Bias rule: only choose Safe over Suspicious when you are genuinely \
 uncertain between those two. Uncertainty never justifies downgrading \
 a clear threat below "Dangerous".
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
  FEW-SHOT EXAMPLES (learn from these)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 
 EXAMPLE 1 — Dangerous:
   URL: http://bisp-free-money-claim.tk/login
@@ -186,15 +199,55 @@ recognized educational organization's official domain.",
     ]
   }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 Return ONLY the raw JSON object. No markdown fences, no preamble.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+===========================================
 """
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _MAX_CONCURRENT_AI_CALLS = 5
 _semaphore = asyncio.Semaphore(_MAX_CONCURRENT_AI_CALLS)
+
+_VALID_STATUSES = frozenset({"Safe", "Suspicious", "Dangerous"})
+
+
+def _coerce_score(raw: object) -> int:
+    """Force whatever the LLM returned into a clamped 0-100 integer."""
+    try:
+        return max(0, min(100, int(round(float(raw)))))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
+    """
+    Map loosely-typed LLM output onto the strict response model.
+
+    Handles field aliases (risk_score / flagged_reasons), non-integer
+    scores, and unexpected status casing so the API contract never
+    breaks.
+    """
+    status = str(parsed.get("status") or "Safe").strip().capitalize()
+    if status not in _VALID_STATUSES:
+        status = "Safe"
+
+    raw_reasons = parsed.get("reasons")
+    if raw_reasons is None:
+        raw_reasons = parsed.get("flagged_reasons") or []
+    reasons = (
+        [str(r) for r in raw_reasons if r]
+        if isinstance(raw_reasons, list)
+        else []
+    )
+
+    return AnalysisResult(
+        url=url,
+        status=status,
+        score=_coerce_score(parsed.get("score") or parsed.get("risk_score") or 0),
+        explanation=str(parsed.get("explanation") or ""),
+        reasons=reasons,
+    )
 
 
 def _strip_markdown_fences(raw: str) -> str:
@@ -207,23 +260,21 @@ def _strip_markdown_fences(raw: str) -> str:
 
 
 async def _analyze_single_url(url: str, platform: str = "Browser Extension",
-                               text: str = "") -> dict:
+                               text: str = "") -> AnalysisResult:
     """
     Analyze one URL.  Runs the heuristic first; if it flags the URL the
     LLM is never called.  Otherwise delegates to Qwen.
-
-    Returns a dict with keys: url, status, score, explanation, reasons.
     """
     # Heuristic pre-filter
     h_status, h_score, h_reasons = heuristic_scan(url)
     if h_status != "Safe":
-        return {
-            "url": url,
-            "status": h_status,
-            "score": h_score,
-            "explanation": "Heuristic flags detected before AI analysis.",
-            "reasons": h_reasons,
-        }
+        return AnalysisResult(
+            url=url,
+            status=h_status,
+            score=_coerce_score(h_score),
+            explanation="Heuristic flags detected before AI analysis.",
+            reasons=list(h_reasons),
+        )
 
     # LLM analysis (rate-limited via semaphore)
     async with _semaphore:
@@ -240,6 +291,7 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
                 ],
+                temperature=0,  # deterministic classification
             )
 
             raw = _strip_markdown_fences(
@@ -247,40 +299,34 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
             )
             parsed = json.loads(raw)
 
-            # Normalize field names coming from the LLM
-            return {
-                "url": url,
-                "status": parsed.get("status", "Safe"),
-                "score": parsed.get("score") or parsed.get("risk_score", 0),
-                "explanation": parsed.get("explanation", ""),
-                "reasons": parsed.get("reasons") or parsed.get("flagged_reasons", []),
-            }
+            # Normalize field names / types coming from the LLM
+            return _normalize_llm_result(parsed, url)
 
         except json.JSONDecodeError:
-            return {
-                "url": url,
-                "status": "Error",
-                "score": 0,
-                "explanation": "Failed to parse AI response.",
-                "reasons": [],
-            }
+            return AnalysisResult(
+                url=url,
+                status="Error",
+                score=0,
+                explanation="Failed to parse AI response.",
+                reasons=[],
+            )
         except Exception as exc:
-            return {
-                "url": url,
-                "status": "Error",
-                "score": 0,
-                "explanation": str(exc),
-                "reasons": [],
-            }
+            return AnalysisResult(
+                url=url,
+                status="Error",
+                score=0,
+                explanation=str(exc),
+                reasons=[],
+            )
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/")
-def read_root():
+def read_root() -> dict[str, str]:
     return {"message": "ScrollGuard AI Detection Engine is active!"}
 
 
-@app.post("/analyze")
+@app.post("/analyze", response_model=AnalysisResult)
 async def analyze_content(request: AnalysisRequest):
     """Analyze a single URL + text payload."""
     if not request.url and not request.text:
@@ -295,13 +341,13 @@ async def analyze_content(request: AnalysisRequest):
         text=request.text,
     )
 
-    if result["status"] == "Error":
-        raise HTTPException(status_code=500, detail=result["explanation"])
+    if result.status == "Error":
+        raise HTTPException(status_code=500, detail=result.explanation)
 
     return result
 
 
-@app.post("/scan_links")
+@app.post("/scan_links", response_model=list[AnalysisResult])
 async def scan_links(batch: URLBatch):
     """Analyze a batch of URLs concurrently (capped by semaphore)."""
     if not batch.urls:
