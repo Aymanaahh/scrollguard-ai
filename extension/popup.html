@@ -164,6 +164,150 @@
       letter-spacing: 0.4px;
       margin-top: 2px;
     }
+    .stat-chip .stat-hint {
+      font-size: 8px;
+      font-weight: 700;
+      color: rgba(251, 191, 36, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 3px;
+      transition: transform 0.2s ease-in-out, color 0.2s ease-in-out;
+    }
+
+    /* -- Flagged stat card (history toggle) -- */
+    .stat-chip--toggle {
+      cursor: pointer;
+      user-select: none;
+    }
+    .stat-chip--toggle:hover {
+      border-color: rgba(251, 191, 36, 0.45);
+      box-shadow: 0 3px 12px rgba(251, 191, 36, 0.12);
+    }
+    .stat-chip--toggle:focus-visible {
+      outline: 2px solid rgba(251, 191, 36, 0.55);
+      outline-offset: 1px;
+    }
+    .stat-chip--toggle.open .stat-hint {
+      transform: rotate(180deg);
+      color: var(--sg-warning);
+    }
+
+    /* -- Flagged threat history -- */
+    .flagged-history {
+      background: var(--sg-surface);
+      border: 1px solid var(--sg-border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      animation: historyIn 0.2s ease-out;
+    }
+    @keyframes historyIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .flagged-history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .flagged-history-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--sg-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .flagged-history-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--sg-warning);
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      border-radius: 10px;
+      padding: 1px 8px;
+    }
+    .flagged-list {
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+    }
+    .flagged-card {
+      background: var(--sg-surface-2);
+      border: 1px solid var(--sg-border);
+      border-radius: 8px;
+      padding: 10px;
+      transition: all 0.2s ease-in-out;
+    }
+    .flagged-card:hover {
+      border-color: rgba(148, 163, 184, 0.35);
+      transform: translateY(-1px);
+    }
+    .flagged-card.dangerous  { border-left: 3px solid #dc2626; }
+    .flagged-card.suspicious { border-left: 3px solid #fbbf24; }
+    .flagged-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .flagged-pill {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .flagged-pill.dangerous {
+      background: #dc2626;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+    }
+    .flagged-pill.suspicious {
+      background: #fbbf24;
+      color: #1e293b;
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+    }
+    .flagged-score {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--sg-muted);
+      white-space: nowrap;
+    }
+    .flagged-card.dangerous  .flagged-score { color: var(--sg-danger); }
+    .flagged-card.suspicious .flagged-score { color: var(--sg-warning); }
+    .flagged-url {
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: 10.5px;
+      color: var(--sg-accent-link);
+      word-break: break-all;
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .flagged-reason {
+      font-size: 11px;
+      color: var(--sg-muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .flagged-empty {
+      text-align: center;
+      font-size: 11px;
+      color: var(--sg-dim);
+      border: 1px dashed rgba(148, 163, 184, 0.25);
+      border-radius: 8px;
+      padding: 16px 10px;
+      line-height: 1.4;
+    }
 
     /* ── Manual scan fallback button ────────────── */
     .scan-btn {
@@ -366,15 +510,26 @@
         <div class="stat-value" id="statScanned">--</div>
         <div class="stat-label">Links Scanned</div>
       </div>
-      <div class="stat-chip">
+      <div class="stat-chip stat-chip--toggle" id="flaggedToggle" role="button"
+           tabindex="0" aria-expanded="false" aria-controls="flaggedHistory">
         <div class="stat-value" id="statFlagged">--</div>
         <div class="stat-label">Flagged</div>
+        <div class="stat-hint">&#x25BE; History</div>
       </div>
       <div class="stat-chip">
         <div class="stat-value" id="statStatus">Active</div>
         <div class="stat-label">Status</div>
       </div>
     </div>
+
+    <!-- Flagged threat history (toggled by the FLAGGED stat card) -->
+    <section class="flagged-history" id="flaggedHistory" hidden>
+      <div class="flagged-history-header">
+        <span class="flagged-history-title">Flagged Threat History</span>
+        <span class="flagged-history-count" id="flaggedCount">0</span>
+      </div>
+      <div class="flagged-list" id="flaggedList"></div>
+    </section>
 
     <!-- Manual scan fallback -->
     <button class="scan-btn" id="scanBtn">Scan Active Tab</button>

@@ -2,6 +2,9 @@
  * ScrollGuard AI – Background Service Worker
  *
  * Handles batch link analysis and messaging between content scripts and backend.
+ * Also records every Dangerous/Suspicious result in a session-scoped
+ * flagged-links history that the popup renders as its "Flagged Threat
+ * History" list (see FLAGGED_HISTORY_KEY below).
  * Acts as a proxy between the content script and the FastAPI backend so that
  * fetch requests are executed in the extension's privileged context, avoiding
  * CORS and Mixed Content restrictions that block content scripts and popups
@@ -33,6 +36,76 @@ const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000/scan_links";
  * before the content script's 30 s race deadline.
  */
 const REQUEST_TIMEOUT_MS = 25000;
+
+// ── Flagged-link session history ───────────────────────────────────────────
+
+/**
+ * Threat links flagged during the current browsing session, rendered by
+ * the popup as the "Flagged Threat History" list.
+ *
+ * MV3 service workers are terminated after ~30 s of idle time, so the
+ * array is mirrored into chrome.storage.local and reloaded on every cold
+ * start.  The history is wiped when the browser itself starts (onStartup),
+ * keeping the list scoped to a single browsing session.
+ *
+ * Entry shape: { url, status, riskScore, reason }
+ */
+const FLAGGED_HISTORY_KEY = "sg_flaggedLinks";
+const FLAGGED_HISTORY_MAX = 50;
+
+let flaggedLinks = [];
+
+/** Resolves once the persisted history has finished loading (cold-start guard). */
+const flaggedLinksReady = new Promise((resolve) => {
+  chrome.storage.local.get(FLAGGED_HISTORY_KEY, (data) => {
+    flaggedLinks = Array.isArray(data && data[FLAGGED_HISTORY_KEY])
+      ? data[FLAGGED_HISTORY_KEY]
+      : [];
+    resolve();
+  });
+});
+
+// Fresh history for every browsing session.
+chrome.runtime.onStartup.addListener(() => {
+  flaggedLinks = [];
+  chrome.storage.local.remove(FLAGGED_HISTORY_KEY);
+});
+
+/**
+ * Record every Dangerous/Suspicious result of a scan batch in the session
+ * history.  Duplicate URLs are skipped, newest entries are kept first, and
+ * the list is capped at FLAGGED_HISTORY_MAX entries.
+ *
+ * @param {Array<Object>} results - Backend analysis results.
+ */
+async function rememberFlaggedLinks(results) {
+  await flaggedLinksReady;
+
+  let changed = false;
+  for (const result of results) {
+    if (!result || !result.url) continue;
+    if (result.status !== "Dangerous" && result.status !== "Suspicious") continue;
+    if (flaggedLinks.some((entry) => entry.url === result.url)) continue;
+
+    flaggedLinks.unshift({
+      url: result.url,
+      status: result.status,
+      riskScore: typeof result.score === "number" ? result.score : 0,
+      reason:
+        result.explanation ||
+        (Array.isArray(result.reasons) && result.reasons[0]) ||
+        "",
+    });
+    changed = true;
+  }
+
+  if (changed) {
+    if (flaggedLinks.length > FLAGGED_HISTORY_MAX) {
+      flaggedLinks = flaggedLinks.slice(0, FLAGGED_HISTORY_MAX);
+    }
+    chrome.storage.local.set({ [FLAGGED_HISTORY_KEY]: flaggedLinks });
+  }
+}
 
 /**
  * Resolve the backend URL from chrome.storage or fall back to default.
@@ -95,6 +168,9 @@ async function analyzeLinksBatch(links) {
       };
     }
 
+    // Track flagged results for the popup's Threat History list.
+    await rememberFlaggedLinks(data);
+
     return data;
   } catch (err) {
     // Abort fired by the timeout above (or an aborted connection).
@@ -126,11 +202,15 @@ async function analyzeLinksBatch(links) {
 }
 
 /**
- * Listen for messages from content scripts.
- * Expected message: { action: "scanPageLinks", links: [array of URLs] }
+ * Listen for messages from content scripts and the popup.
+ * Expected messages:
+ *   { action: "scanPageLinks", links: [array of URLs] }
+ *   { action: "getFlaggedLinks" }  →  { success: true, links: [...] }
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message && message.action === "scanPageLinks") {
+  if (!message) return;
+
+  if (message.action === "scanPageLinks") {
     analyzeLinksBatch(message.links)
       .then(sendResponse)
       .catch(() =>
@@ -142,6 +222,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           status: "Safe",
         })
       );
+    return true; // keep channel open for async response
+  }
+
+  if (message.action === "getFlaggedLinks") {
+    // Async: on a cold worker start the persisted history may still be
+    // loading, so respond only once it is ready.
+    flaggedLinksReady.then(() =>
+      sendResponse({ success: true, links: flaggedLinks })
+    );
     return true; // keep channel open for async response
   }
 });
