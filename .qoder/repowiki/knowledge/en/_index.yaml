@@ -3,7 +3,7 @@ schema_version: 1
 locale: en-US
 branch: main
 nodes_managed: true
-exported_at: "2026-09-04T17:09:41Z"
+exported_at: "2026-09-04T18:08:30Z"
 modules:
     "":
         dir_name: ScrollGuard AI Phishing Protection Suite
