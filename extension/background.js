@@ -11,10 +11,12 @@
  * running on HTTPS pages.
  *
  * Every backend call is wrapped in an abort-based timeout plus error guards
- * and always resolves with either the result array or a clean fallback
- * object ({ success: false, error, status: "Safe" }).  Timeouts and network
- * failures are resolved gracefully — no unhandled rejections and no
- * console.error — so Chrome never raises the extension error badge.
+ * and always resolves with either the result array or a graceful fallback —
+ * a timed-out request returns per-URL "Safe" results (reason: "Backend
+ * evaluation delayed") that render as ordinary cards instead of a blocking
+ * error UI.  Timeouts and network failures are resolved gracefully — no
+ * unhandled rejections and no console.error — so Chrome never raises the
+ * extension error badge.
  */
 
 /**
@@ -31,11 +33,12 @@
 const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000/scan_links";
 
 /**
- * Hard timeout for backend requests.  25 s gives multi-URL Qwen LLM
- * batches room to complete while still resolving the graceful fallback
- * before the content script's 30 s race deadline.
+ * Hard timeout for backend requests.  30 s gives slow multi-URL Qwen LLM
+ * batches the full window to complete; the content script's own 30 s race
+ * treats an over-deadline zero-click batch as a no-op, while the popup
+ * receives the graceful "evaluation delayed" fallback below.
  */
-const REQUEST_TIMEOUT_MS = 25000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 // ── Flagged-link session history ───────────────────────────────────────────
 
@@ -124,9 +127,12 @@ async function getBackendUrl() {
  *
  * Robustness:
  *   - AbortController timeout so a hung backend never blocks the caller.
- *   - Timeouts and network failures resolve gracefully — never rethrown
- *     and never logged with console.error — so Chrome does not raise
- *     the extension error badge when the backend is slow or down.
+ *   - On timeout, resolves with per-URL "Safe" fallback results
+ *     (reason: "Backend evaluation delayed") instead of an error, so the
+ *     popup shows a normal result card rather than a blocking error UI.
+ *   - Other network failures resolve gracefully — never rethrown and
+ *     never logged with console.error — so Chrome does not raise the
+ *     extension error badge when the backend is slow or down.
  *   - Validates the response is a JSON array before returning it.
  */
 async function analyzeLinksBatch(links) {
@@ -182,9 +188,22 @@ async function analyzeLinksBatch(links) {
       /abort/i.test(String((err && err.message) || ""));
 
     if (isAbort) {
-      // Graceful fallback — no console.error, no unhandled rejection,
-      // so Chrome's extension error badge stays clean.
-      return { success: false, error: "Backend timeout", status: "Safe" };
+      // Graceful per-URL fallback — no console.error and no unhandled
+      // rejection (Chrome's extension error badge stays clean), and no
+      // blocking "Backend timeout" error UI: the popup renders these as
+      // ordinary Safe result cards.
+      return links.map((url) => ({
+        url,
+        status: "Safe",
+        riskScore: 0,
+        score: 0,
+        reason: "Backend evaluation delayed",
+        explanation: "Backend evaluation delayed",
+        // Sentinel: content.js skips stats and badge handling for entries
+        // carrying an error marker, so a delayed evaluation is never
+        // counted as a completed scan.
+        error: "Backend evaluation delayed",
+      }));
     }
 
     // Network-level failure (backend unreachable, DNS, mixed content).
