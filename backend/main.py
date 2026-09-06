@@ -98,7 +98,7 @@ critical failure.
  CLASSIFICATION RULES
 ===========================================
 
-DANGEROUS (score 70-100) — you MUST use this tag when ANY of these apply:
+DANGEROUS (score 75-100) — you MUST use this tag when ANY of these apply:
   • Fake government benefit / aid schemes (e.g. BISP, Ehsaas, PM Kisan, \
     "claim your government payment" from unofficial .tk/.ml/.ga domains).
   • Credential harvesting: pages that ask users to "verify", "confirm", \
@@ -112,7 +112,7 @@ DANGEROUS (score 70-100) — you MUST use this tag when ANY of these apply:
   • Deeply nested subdomains designed to mimic a real brand \
     (e.g. secure-login.google.evil-domain.com).
 
-SUSPICIOUS (score 26-69) — use this tag when:
+SUSPICIOUS (score 30-74) — use this tag when:
   • Get-rich-quick schemes ("earn $100/day from home", "double your \
     crypto") from non-official domains.
   • URL shorteners (bit.ly, tinyurl, cutt.ly) combined with urgency \
@@ -122,7 +122,7 @@ SUSPICIOUS (score 26-69) — use this tag when:
   • Unrealistic financial promises that do not rise to the level of \
     outright fraud.
 
-SAFE (score 0-15) — use this tag for:
+SAFE (score 0-29) — use this tag for:
   • Standard websites, official brand domains, and verified subdomains \
     (google.com, github.com, amazon.com, youtube.com, etc.).
   • Regular login portals of well-known services \
@@ -132,20 +132,6 @@ SAFE (score 0-15) — use this tag for:
   • Shortened links when the surrounding context is clearly benign.
   • URLs that merely contain words like "free" or "login" as part of \
     a legitimate domain's normal structure.
-
-===========================================
- CRITICAL ENFORCEMENT — DANGEROUS STATUS
-===========================================
-
-You MUST use the "Dangerous" status for fake government schemes \
-(e.g., BISP/Ehsaas), fake lotteries, and credential harvesting \
-phishing links. Do NOT default to "Suspicious" for clear threats. \
-When the input matches any Dangerous pattern above, confidently \
-return "Dangerous" with a score of 70-100.
-
-Bias rule: only choose Safe over Suspicious when you are genuinely \
-uncertain between those two. Uncertainty never justifies downgrading \
-a clear threat below "Dangerous".
 
 ===========================================
  FEW-SHOT EXAMPLES (learn from these)
@@ -223,15 +209,26 @@ def _coerce_score(raw: object) -> int:
 def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
     """
     Map loosely-typed LLM output onto the strict response model.
-
-    Handles field aliases (risk_score / flagged_reasons), non-integer
-    scores, and unexpected status casing so the API contract never
-    breaks.
+    Includes a Defensive Abstraction Layer to guarantee threshold enforcement.
     """
-    status = str(parsed.get("status") or "Safe").strip().capitalize()
-    if status not in _VALID_STATUSES:
-        status = "Safe"
+    # 1. Extract and coerce the risk score first
+    extracted_score = _coerce_score(parsed.get("score") or parsed.get("risk_score") or 0)
+    
+    # 2. Programmatic Threshold Enforcer (Overrides LLM Hallucinations)
+    if extracted_score >= 75:
+        status = "Dangerous"
+    elif extracted_score >= 30:
+        # If the model marked it safe but gave it a high score, force it to Suspicious
+        raw_status = str(parsed.get("status") or "Suspicious").strip().capitalize()
+        status = "Suspicious" if raw_status not in _VALID_STATUSES else raw_status
+        if status == "Safe":
+            status = "Suspicious"
+    else:
+        status = str(parsed.get("status") or "Safe").strip().capitalize()
+        if status not in _VALID_STATUSES:
+            status = "Safe"
 
+    # 3. Clean up reasons array
     raw_reasons = parsed.get("reasons")
     if raw_reasons is None:
         raw_reasons = parsed.get("flagged_reasons") or []
@@ -244,7 +241,7 @@ def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
     return AnalysisResult(
         url=url,
         status=status,
-        score=_coerce_score(parsed.get("score") or parsed.get("risk_score") or 0),
+        score=extracted_score,
         explanation=str(parsed.get("explanation") or ""),
         reasons=reasons,
     )
@@ -286,12 +283,13 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
 
         try:
             completion = await client.chat.completions.create(
-                model="qwen3.5-plus-2026-02-15",
+                model="qwen3.8-flash",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
                 ],
                 temperature=0,  # deterministic classification
+                max_tokens=150, # FORCE fast, concise JSON completion
             )
 
             raw = _strip_markdown_fences(

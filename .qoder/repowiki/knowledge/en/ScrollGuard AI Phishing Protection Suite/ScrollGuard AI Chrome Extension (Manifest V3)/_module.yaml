@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: extension
-title: ScrollGuard AI Chrome Extension
+title: ScrollGuard AI Chrome Extension (Manifest V3)
 scope:
     - extension/
 source_files: []

@@ -1,1 +1,0 @@
-Chrome Extension Manifest V3 with `activeTab`, `scripting`, and `storage` permissions; pure vanilla JavaScript/DOM with no frameworks; communicates with a local FastAPI/Uvicorn server over HTTP JSON using `fetch` with an AbortController timeout.
