@@ -14,9 +14,12 @@
 
 ## Update Summary
 **Changes Made**
-- **Model Upgrade**: Updated from qwen3.6-plus to qwen3.5-plus-2026-02-15 for enhanced threat detection accuracy and improved security assessment capabilities
-- **Enhanced Analysis Engine**: The new model version provides improved phishing detection, better scam classification, and more accurate risk scoring
-- **Updated Model References**: All references to the Qwen model have been updated throughout the documentation to reflect the latest version
+- **Model Upgrade**: Updated from qwen3.5-plus-2026-02-15 to qwen3.8-flash for enhanced performance and improved threat detection accuracy
+- **Enhanced Defensive Abstraction Layer**: Improved _normalize_llm_result function with programmatic threshold enforcement to override LLM hallucinations
+- **Recalibrated Scoring Thresholds**: Updated classification thresholds (Dangerous: 75-100, Suspicious: 30-74, Safe: 0-29) for more accurate threat assessment
+- **Performance Optimizations**: Added max_tokens parameter (150) for faster, more concise JSON completions
+- **Streamlined System Prompt**: Enhanced prompt engineering for better reliability against LLM inconsistencies and improved few-shot examples
+- **Improved Error Handling**: Enhanced response normalization with better field alias handling and type coercion
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -33,7 +36,7 @@
 ## Introduction
 This document provides comprehensive API documentation for the ScrollGuard AI backend RESTful service built with an **asynchronous FastAPI architecture**. The system features a fully async implementation with AsyncOpenAI client integration for DashScope, concurrent URL analysis capabilities, sophisticated heuristic pre-screening, and robust error handling. It covers server configuration (CORS, async OpenAI client setup), endpoint specifications (health check, content analysis, and batch URL scanning), authentication via environment variables, error handling strategies, evaluation framework integration, client implementation guidelines, and debugging using FastAPI's interactive documentation.
 
-**Updated**: The backend now uses the enhanced qwen3.5-plus-2026-02-15 model providing improved threat detection accuracy and enhanced security assessment capabilities, along with strict response models, deterministic processing with temperature=0, and sophisticated LLM result normalization for improved reliability and consistency.
+**Updated**: The backend now uses the enhanced qwen3.8-flash model providing improved performance and enhanced threat detection accuracy, along with strict response models, deterministic processing with temperature=0, sophisticated LLM result normalization with defensive abstraction layer, and recalibrated scoring thresholds for improved reliability and consistency.
 
 ## Project Structure
 The backend is organized with clear separation of concerns and modern async patterns:
@@ -60,23 +63,26 @@ J["Concurrency Control<br/>asyncio.Semaphore(5)"] --> D
 K["Concurrent Processing<br/>asyncio.gather()"] --> D
 L["Uvicorn Entry Point<br/>main.py + Procfile"] --> A
 M["Strict Response Models<br/>AnalysisResult"] --> D
-N["LLM Result Normalization<br/>_normalize_llm_result()"] --> D
-O["Enhanced Qwen Model<br/>qwen3.5-plus-2026-02-15"] --> C
+N["Enhanced LLM Result Normalization<br/>_normalize_llm_result()"] --> D
+O["Enhanced Qwen Model<br/>qwen3.8-flash"] --> C
+P["Defensive Abstraction Layer<br/>Threshold Enforcement"] --> N
+Q["Performance Optimization<br/>max_tokens=150"] --> O
 ```
 
 **Diagram sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
 - [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:209-210](file://backend/main.py#L209-L210)
-- [main.py:223-250](file://backend/main.py#L223-L250)
-- [main.py:288-295](file://backend/main.py#L288-L295)
-- [main.py:324-360](file://backend/main.py#L324-L360)
+- [main.py:209-247](file://backend/main.py#L209-L247)
+- [main.py:285-293](file://backend/main.py#L285-L293)
+- [main.py:324-326](file://backend/main.py#L324-L326)
+- [main.py:327-345](file://backend/main.py#L327-L345)
+- [main.py:348-358](file://backend/main.py#L348-L358)
 - [Procfile:1-2](file://backend/Procfile#L1-L2)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
 
 **Section sources**
-- [main.py:1-375](file://backend/main.py#L1-L375)
+- [main.py:1-372](file://backend/main.py#L1-L372)
 - [heuristics.py:1-110](file://backend/heuristics.py#L1-L110)
 - [evaluate_engine.py:1-78](file://backend/evaluate_engine.py#L1-L78)
 - [scam_dataset.json:1-37](file://backend/scam_dataset.json#L1-L37)
@@ -87,7 +93,7 @@ O["Enhanced Qwen Model<br/>qwen3.5-plus-2026-02-15"] --> C
 
 ## Core Components
 - **Asynchronous FastAPI application** with CORS enabled for browser extension communication
-- **AsyncOpenAI client** configured for Alibaba Cloud DashScope with **qwen3.5-plus-2026-02-15 model** for enhanced threat detection
+- **AsyncOpenAI client** configured for Alibaba Cloud DashScope with **qwen3.8-flash model** for enhanced performance and threat detection
 - **Pydantic models** defining request/response schemas for structured validation and auto-generated docs
 - **Enhanced heuristic scanning engine** with sophisticated pattern matching for suspicious TLDs, URL shortener detection, typosquatting detection, and refined risk scoring
 - **Concurrency control** using asyncio.Semaphore for rate limiting (max 5 simultaneous LLM calls)
@@ -110,7 +116,7 @@ Key behaviors:
 - **Enhanced**: Comprehensive error handling with standardized error responses and HTTPException mapping
 - Errors are converted to HTTPException with appropriate status codes
 - **New**: Asynchronous architecture enables better performance and resource utilization
-- **Updated**: Enhanced Qwen model (qwen3.5-plus-2026-02-15) provides improved threat detection accuracy and enhanced security assessment capabilities
+- **Updated**: Enhanced Qwen model (qwen3.8-flash) provides improved performance and enhanced threat detection capabilities with optimized token usage
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
@@ -127,7 +133,7 @@ Key behaviors:
 ## Architecture Overview
 The backend exposes a minimal REST API backed by an external LLM with enhanced heuristic pre-screening and **asynchronous concurrency control**. Clients send requests to the FastAPI server, which performs rule-based analysis first, then forwards complex cases to the DashScope API for detailed assessment using concurrent processing. An evaluation script tests the API against a curated dataset to measure accuracy.
 
-**Updated**: The architecture now leverages strict response models, deterministic processing with temperature=0, enhanced error handling, and the upgraded qwen3.5-plus-2026-02-15 model for improved threat detection accuracy and enhanced security assessment capabilities.
+**Updated**: The architecture now leverages strict response models, deterministic processing with temperature=0, enhanced error handling, and the upgraded qwen3.8-flash model for improved performance and enhanced threat detection capabilities with optimized token usage.
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +141,7 @@ participant Client as "Client"
 participant FastAPI as "AsyncFastAPI App<br/>main.py"
 participant Semaphore as "Concurrency Control<br/>asyncio.Semaphore(5)"
 participant Heuristics as "Heuristic Engine<br/>heuristics.py"
-participant LLM as "DashScope API<br/>qwen3.5-plus-2026-02-15"
+participant LLM as "DashScope API<br/>qwen3.8-flash"
 participant Eval as "Evaluator<br/>evaluate_engine.py"
 Client->>FastAPI : GET "/"
 FastAPI-->>Client : 200 OK {message}
@@ -146,10 +152,10 @@ alt Heuristic flags detected
 FastAPI-->>Client : 200 OK {heuristic result}
 else No heuristic flags
 FastAPI->>Semaphore : Acquire semaphore
-Semaphore->>LLM : chat.completions.create(messages)<br/>model : qwen3.5-plus-2026-02-15<br/>temperature=0
+Semaphore->>LLM : chat.completions.create(messages)<br/>model : qwen3.8-flash<br/>temperature=0<br/>max_tokens=150
 LLM-->>Semaphore : JSON threat report
 Semaphore-->>FastAPI : Release semaphore
-FastAPI->>FastAPI : _normalize_llm_result()<br/>field alias handling
+FastAPI->>FastAPI : _normalize_llm_result()<br/>field alias handling + threshold enforcement
 FastAPI-->>Client : 200 OK {AnalysisResult}
 end
 Client->>FastAPI : POST "/scan_links" {urls}
@@ -158,7 +164,7 @@ loop Concurrent processing
 FastAPI->>Heuristics : heuristic_scan(url) for each URL
 alt Some URLs flagged
 FastAPI->>Semaphore : Process remaining URLs concurrently
-Semaphore->>LLM : Multiple parallel LLM calls<br/>model : qwen3.5-plus-2026-02-15<br/>temperature=0
+Semaphore->>LLM : Multiple parallel LLM calls<br/>model : qwen3.8-flash<br/>temperature=0<br/>max_tokens=150
 LLM-->>Semaphore : Parallel responses
 end
 end
@@ -173,7 +179,7 @@ Eval-->>Eval : Compute accuracy metrics
 - [main.py:123-137](file://backend/main.py#L123-L137)
 - [main.py:209-210](file://backend/main.py#L209-L210)
 - [main.py:223-250](file://backend/main.py#L223-L250)
-- [main.py:288-295](file://backend/main.py#L288-L295)
+- [main.py:285-293](file://backend/main.py#L285-L293)
 - [main.py:324-360](file://backend/main.py#L324-L360)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
@@ -199,7 +205,7 @@ Example responses:
   - Body: {"message": "ScrollGuard AI Detection Engine is active!"}
 
 **Section sources**
-- [main.py:324-326](file://backend/main.py#L324-L326)
+- [main.py:322-324](file://backend/main.py#L322-L324)
 
 ### Content Analysis Endpoint: POST /analyze
 - Method: POST
@@ -229,11 +235,13 @@ Example responses:
   - Requests are processed asynchronously with automatic rate limiting to prevent overwhelming the DashScope API
 - **Enhanced Features**:
   - Deterministic processing with temperature=0 for consistent results
-  - Sophisticated LLM result normalization handling field aliases (risk_score → score, flagged_reasons → reasons)
+  - **Enhanced**: Programmatic threshold enforcement overrides LLM hallucinations (Dangerous: ≥75, Suspicious: ≥30, Safe: <30)
+  - **Enhanced**: Sophisticated LLM result normalization handling field aliases (risk_score → score, flagged_reasons → reasons)
+  - **Enhanced**: Performance optimization with max_tokens=150 for faster, more concise responses
   - Comprehensive error handling with standardized error responses
   - Strict response validation ensuring API contract compliance
 
-**Updated**: The endpoint now uses the enhanced qwen3.5-plus-2026-02-15 model providing improved threat detection accuracy and enhanced security assessment capabilities, along with deterministic processing (temperature=0), strict response models, and enhanced error handling for improved reliability and consistency.
+**Updated**: The endpoint now uses the enhanced qwen3.8-flash model providing improved performance and enhanced threat detection capabilities, along with programmatic threshold enforcement, deterministic processing (temperature=0), performance optimizations (max_tokens=150), strict response models, and enhanced error handling for improved reliability and consistency.
 
 Request examples:
 - Minimal payload with URL only:
@@ -263,9 +271,9 @@ Heuristic --> Check{"Status != Safe?"}
 Check --> |Yes| ReturnHeuristic["Return heuristic result<br/>without AI cost"]
 Check --> |No| BuildPrompt["Build user payload<br/>(platform + url + text)"]
 BuildPrompt --> Semaphore["Acquire semaphore<br/>rate limiting"]
-Semaphore --> CallLLM["Call DashScope API<br/>chat.completions.create<br/>model: qwen3.5-plus-2026-02-15<br/>temperature=0"]
+Semaphore --> CallLLM["Call DashScope API<br/>chat.completions.create<br/>model: qwen3.8-flash<br/>temperature=0<br/>max_tokens=150"]
 CallLLM --> Parse{"Parse JSON response?"}
-Parse --> |No| Normalize["Normalize LLM result<br/>_normalize_llm_result()"]
+Parse --> |No| Normalize["Normalize LLM result<br/>_normalize_llm_result()<br/>+ threshold enforcement"]
 Normalize --> Return200["Return 200 OK with AnalysisResult"]
 Parse --> |No| Err500["Return 500 Internal Server Error"]
 Err400 --> End(["End"])
@@ -275,16 +283,16 @@ Return200 --> End
 ```
 
 **Diagram sources**
-- [main.py:329-347](file://backend/main.py#L329-L347)
-- [main.py:262-320](file://backend/main.py#L262-L320)
-- [main.py:223-250](file://backend/main.py#L223-L250)
-- [main.py:288-295](file://backend/main.py#L288-L295)
+- [main.py:327-345](file://backend/main.py#L327-L345)
+- [main.py:259-318](file://backend/main.py#L259-L318)
+- [main.py:209-247](file://backend/main.py#L209-L247)
+- [main.py:285-293](file://backend/main.py#L285-L293)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 **Section sources**
 - [main.py:55-58](file://backend/main.py#L55-L58)
 - [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:329-347](file://backend/main.py#L329-L347)
+- [main.py:327-345](file://backend/main.py#L327-L345)
 
 ### Batch URL Processing Endpoint: POST /scan_links
 - Method: POST
@@ -333,8 +341,8 @@ Loop --> Heuristic["Run heuristic scan"]
 Heuristic --> Check{"Status != Safe?"}
 Check --> |Yes| AddResult["Add heuristic result to results"]
 Check --> |No| Semaphore["Acquire semaphore<br/>rate limiting"]
-Semaphore --> CallLLM["Call AI for detailed analysis<br/>using qwen3.5-plus-2026-02-15<br/>temperature=0"]
-CallLLM --> Normalize["Normalize LLM result<br/>_normalize_llm_result()"]
+Semaphore --> CallLLM["Call AI for detailed analysis<br/>using qwen3.8-flash<br/>temperature=0<br/>max_tokens=150"]
+CallLLM --> Normalize["Normalize LLM result<br/>_normalize_llm_result()<br/>+ threshold enforcement"]
 Normalize --> AddResult
 AddResult --> NextURL{"More URLs?"}
 NextURL --> |Yes| Loop
@@ -343,12 +351,12 @@ ReturnResults --> End(["End"])
 ```
 
 **Diagram sources**
-- [main.py:350-360](file://backend/main.py#L350-L360)
+- [main.py:348-358](file://backend/main.py#L348-L358)
 - [main.py:209-210](file://backend/main.py#L209-L210)
 
 **Section sources**
 - [main.py:61-62](file://backend/main.py#L61-L62)
-- [main.py:350-360](file://backend/main.py#L350-L360)
+- [main.py:348-358](file://backend/main.py#L348-L358)
 
 ### Enhanced Heuristic Scanning Engine
 - **Enhanced Component**: Advanced rule-based URL analysis engine that identifies common scam patterns before AI processing
@@ -380,6 +388,23 @@ Benefits:
 **Section sources**
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
+### Enhanced LLM Result Normalization with Defensive Abstraction Layer
+- **Enhanced Component**: Sophisticated response normalization with programmatic threshold enforcement
+- Location: main.py `_normalize_llm_result()` function
+- **Key Enhancements**:
+  - **Programmatic Threshold Enforcer**: Overrides LLM hallucinations with strict threshold rules
+  - **Enhanced Field Alias Handling**: Better support for risk_score → score and flagged_reasons → reasons mapping
+  - **Improved Type Coercion**: Robust handling of various data types and edge cases
+  - **Enhanced Status Validation**: Ensures valid status values with fallback logic
+
+**Threshold Enforcement Logic**:
+- Score ≥ 75: Force "Dangerous" status regardless of LLM output
+- Score ≥ 30: Force "Suspicious" status (overrides "Safe" if LLM incorrectly classifies)
+- Score < 30: Use "Safe" status with proper validation
+
+**Section sources**
+- [main.py:209-247](file://backend/main.py#L209-L247)
+
 ### CORS Middleware Configuration
 - Allows cross-origin requests from any origin, method, and header to support browser extension communication
 - Credentials are allowed
@@ -395,20 +420,22 @@ Configuration highlights:
 
 ### AsyncOpenAI Client Setup for DashScope Integration
 - Uses the **AsyncOpenAI SDK** with a custom base_url pointing to DashScope's compatible endpoint
-- **Updated Model**: Now using **qwen3.5-plus-2026-02-15** instead of qwen3.6-plus for enhanced threat detection accuracy and improved security assessment capabilities
+- **Updated Model**: Now using **qwen3.8-flash** instead of qwen3.5-plus-2026-02-15 for enhanced performance and improved threat detection accuracy
 - Authentication via DASHSCOPE_API_KEY loaded from environment
 - **Fully asynchronous implementation** for better performance and resource utilization
 - **Enhanced**: Deterministic processing with temperature=0 for consistent results
+- **Performance Optimization**: max_tokens=150 for faster, more concise JSON completions
 
 Notes:
 - If DASHSCOPE_API_KEY is not set, the server will raise a runtime error at startup
 - The same client configuration is mirrored in the optional connectivity test script
 - **Enhanced**: Async implementation enables concurrent API calls with proper rate limiting
 - **Enhanced**: Temperature=0 setting ensures deterministic and consistent LLM responses
+- **Enhanced**: Max tokens limit improves response speed and reduces token usage
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:288-295](file://backend/main.py#L288-L295)
+- [main.py:285-293](file://backend/main.py#L285-L293)
 - [test_qwen.py:1-34](file://backend/test_qwen.py#L1-L34)
 
 ### Direct Server Deployment with Uvicorn
@@ -428,7 +455,7 @@ Configuration Features:
 - Port configuration via environment variable with default fallback
 
 **Section sources**
-- [main.py:365-374](file://backend/main.py#L365-L374)
+- [main.py:363-372](file://backend/main.py#L363-L372)
 - [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 ### Evaluation Framework Integration
@@ -453,7 +480,7 @@ Data model in dataset:
 Accuracy calculation:
 - Accuracy = (correct predictions / total samples) * 100
 
-**Enhanced**: Now uses batch processing with concurrent execution for improved efficiency and reduced API calls, leveraging the enhanced qwen3.5-plus-2026-02-15 model for improved detection accuracy.
+**Enhanced**: Now uses batch processing with concurrent execution for improved efficiency and reduced API calls, leveraging the enhanced qwen3.8-flash model for improved detection accuracy and performance.
 
 **Section sources**
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
@@ -468,9 +495,10 @@ Accuracy calculation:
   - score: int with Field(ge=0, le=100) (clamped between 0-100)
   - explanation: str (default empty string)
   - reasons: list[str] (default empty list)
-- **LLM Result Normalization**: Sophisticated handling of field aliases and type coercion
+- **Enhanced LLM Result Normalization**: Sophisticated handling of field aliases and type coercion with defensive abstraction layer
   - Handles risk_score → score mapping
   - Handles flagged_reasons → reasons mapping
+  - **Enhanced**: Programmatic threshold enforcement overrides LLM hallucinations
   - Validates and normalizes status values
   - Coerces scores to integers within valid range
   - Ensures reasons arrays contain only strings
@@ -481,8 +509,8 @@ Accuracy calculation:
 
 **Section sources**
 - [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:215-250](file://backend/main.py#L215-L250)
-- [main.py:332-346](file://backend/main.py#L332-L346)
+- [main.py:209-247](file://backend/main.py#L209-L247)
+- [main.py:327-345](file://backend/main.py#L327-L345)
 
 ## Dependency Analysis
 High-level dependencies:
@@ -514,7 +542,7 @@ Procfile["Procfile"] --> Uvicorn
 
 **Diagram sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:365-374](file://backend/main.py#L365-L374)
+- [main.py:363-372](file://backend/main.py#L363-L372)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 - [test_qwen.py:1-15](file://backend/test_qwen.py#L1-L15)
@@ -522,7 +550,7 @@ Procfile["Procfile"] --> Uvicorn
 
 **Section sources**
 - [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:365-374](file://backend/main.py#L365-L374)
+- [main.py:363-372](file://backend/main.py#L363-L372)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 
@@ -531,6 +559,7 @@ Procfile["Procfile"] --> Uvicorn
 - **Enhanced**: Built-in concurrency control using asyncio.Semaphore prevents overwhelming the DashScope API with too many simultaneous requests (max 5 concurrent calls)
 - **Enhanced**: Fully asynchronous architecture enables better resource utilization and concurrent processing
 - **Enhanced**: Deterministic processing with temperature=0 ensures consistent and predictable LLM responses
+- **Enhanced**: Performance optimization with max_tokens=150 for faster, more concise JSON completions
 - Network latency to DashScope may vary; consider timeouts and retries in clients
 - Avoid sending overly large payloads; keep text concise to reduce token usage and latency
 - **Enhanced**: Use the /scan_links endpoint for batch processing to improve efficiency and reduce API overhead
@@ -538,7 +567,7 @@ Procfile["Procfile"] --> Uvicorn
 - **New**: Direct server deployment eliminates additional process management overhead
 - **Enhanced**: Strict response models reduce parsing overhead and ensure consistent client behavior
 - **Enhanced**: Batch evaluations can be run offline using the evaluation script to measure throughput and accuracy without impacting live users
-- **Updated**: The enhanced qwen3.5-plus-2026-02-15 model provides improved threat detection accuracy while maintaining performance efficiency
+- **Updated**: The enhanced qwen3.8-flash model provides improved performance and enhanced threat detection capabilities with optimized token usage
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -568,26 +597,30 @@ Common issues and resolutions:
   - Resolution: Check environment variables (PORT, ENV) and ensure proper installation of dependencies
   - For cloud deployments, verify Procfile configuration matches your platform requirements
 - **Updated**: Model compatibility issues:
-  - Symptom: API calls fail with the new qwen3.5-plus-2026-02-15 model
+  - Symptom: API calls fail with the new qwen3.8-flash model
   - Resolution: Ensure DASHSCOPE_API_KEY has access to the specific model version and check DashScope API status
+- **Enhanced**: Performance issues:
+  - Symptom: Slow response times or high token usage
+  - Resolution: Verify max_tokens=150 setting is working correctly and consider adjusting timeout settings
 
 Debugging with FastAPI docs:
 - Interactive API documentation is available at http://127.0.0.1:8000/docs
 - Use it to explore endpoints, test requests, and inspect response schemas directly in the browser
 - **Enhanced**: Test the /scan_links endpoint with batch URL processing capabilities and observe concurrent processing behavior
 - **Enhanced**: Verify strict response model validation and standardized error handling
+- **Enhanced**: Monitor performance improvements with the new qwen3.8-flash model and max_tokens optimization
 
 **Section sources**
 - [main.py:32-34](file://backend/main.py#L32-L34)
-- [main.py:332-346](file://backend/main.py#L332-L346)
-- [main.py:350-360](file://backend/main.py#L350-L360)
-- [main.py:365-374](file://backend/main.py#L365-L374)
+- [main.py:327-345](file://backend/main.py#L327-L345)
+- [main.py:348-358](file://backend/main.py#L348-L358)
+- [main.py:363-372](file://backend/main.py#L363-L372)
 - [README.md:127-143](file://README.md#L127-L143)
 
 ## Conclusion
-The ScrollGuard AI backend provides a lightweight, secure, and extensible REST API for real-time content analysis powered by DashScope's **qwen3.5-plus-2026-02-15 model** with **strict response models**, **deterministic processing**, and **enhanced error handling**. The complete rewrite to async FastAPI with AsyncOpenAI client, combined with asyncio.Semaphore for rate limiting and asyncio.gather() for concurrent URL analysis, significantly improves performance and scalability while maintaining high accuracy. With direct server deployment capabilities through Uvicorn entry points and environment-based configuration, the system supports rapid development and continuous quality assurance. Clients should implement resilient networking patterns, including retries and rate limiting, to ensure reliable operation in production environments.
+The ScrollGuard AI backend provides a lightweight, secure, and extensible REST API for real-time content analysis powered by DashScope's **qwen3.8-flash model** with **strict response models**, **deterministic processing**, and **enhanced error handling**. The complete rewrite to async FastAPI with AsyncOpenAI client, combined with asyncio.Semaphore for rate limiting and asyncio.gather() for concurrent URL analysis, significantly improves performance and scalability while maintaining high accuracy. With direct server deployment capabilities through Uvicorn entry points and environment-based configuration, the system supports rapid development and continuous quality assurance. Clients should implement resilient networking patterns, including retries and rate limiting, to ensure reliable operation in production environments.
 
-**Updated**: The implementation now features the enhanced qwen3.5-plus-2026-02-15 model providing improved threat detection accuracy and enhanced security assessment capabilities, along with strict response models ensuring API contract compliance, deterministic processing with temperature=0 for consistent results, sophisticated LLM result normalization handling field aliases, and comprehensive error handling for improved reliability and maintainability.
+**Updated**: The implementation now features the enhanced qwen3.8-flash model providing improved performance and enhanced threat detection capabilities, along with programmatic threshold enforcement ensuring accurate classification, strict response models guaranteeing API contract compliance, deterministic processing with temperature=0 for consistent results, performance optimizations with max_tokens=150 for faster responses, sophisticated LLM result normalization handling field aliases, and comprehensive error handling for improved reliability and maintainability.
 
 ## Appendices
 
@@ -616,6 +649,7 @@ The ScrollGuard AI backend provides a lightweight, secure, and extensible REST A
   - Implement proper error handling for individual URL failures within batch requests
   - Leverage built-in concurrency control to avoid overwhelming the API
   - Expect consistent AnalysisResult responses with standardized fields
+  - **Enhanced**: Benefit from improved performance with qwen3.8-flash model and optimized token usage
 - Retry logic:
   - Implement exponential backoff with jitter for transient errors (network issues, 5xx responses)
   - Respect upstream rate limits; add delays between requests if necessary
@@ -639,7 +673,7 @@ The ScrollGuard AI backend provides a lightweight, secure, and extensible REST A
 - Run the evaluation script after starting the server
 - The script reads scam_dataset.json, sends batch requests to /scan_links, compares predicted status with expected_status, and prints accuracy metrics
 - Use this workflow to validate improvements to prompts, heuristic rules, or model behavior
-- **Enhanced**: The evaluation now benefits from batch processing efficiency and concurrent execution capabilities with the enhanced qwen3.5-plus-2026-02-15 model
+- **Enhanced**: The evaluation now benefits from batch processing efficiency and concurrent execution capabilities with the enhanced qwen3.8-flash model
 
 **Section sources**
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
@@ -664,18 +698,20 @@ The enhanced heuristic engine applies the following sophisticated detection rule
 - [heuristics.py:16-98](file://backend/heuristics.py#L16-L98)
 
 ### Model and Processing Updates
-- **Current Model**: qwen3.5-plus-2026-02-15 (updated from qwen3.6-plus)
+- **Current Model**: qwen3.8-flash (updated from qwen3.5-plus-2026-02-15)
 - **Processing**: Deterministic with temperature=0 for consistent results
-- **Response Models**: Strict AnalysisResult with validated fields and constraints
-- **Error Handling**: Comprehensive with standardized HTTPException mapping
+- **Performance Optimization**: max_tokens=150 for faster, more concise JSON completions
+- **Enhanced Response Models**: Strict AnalysisResult with validated fields and constraints
+- **Enhanced Error Handling**: Comprehensive with standardized HTTPException mapping
+- **Enhanced Threshold Enforcement**: Programmatic override of LLM hallucinations (Dangerous: ≥75, Suspicious: ≥30, Safe: <30)
 - **Rate Limiting**: asyncio.Semaphore with max 5 concurrent calls
-- **Benefits**: Improved threat detection accuracy, enhanced security assessment capabilities, better phishing detection, and more accurate risk scoring
+- **Benefits**: Improved performance, enhanced threat detection accuracy, better phishing detection, more accurate risk scoring, and optimized token usage
 
 **Section sources**
-- [main.py:288-295](file://backend/main.py#L288-L295)
+- [main.py:285-293](file://backend/main.py#L285-L293)
 - [main.py:65-73](file://backend/main.py#L65-L73)
 - [main.py:209-210](file://backend/main.py#L209-L210)
-- [main.py:223-250](file://backend/main.py#L223-L250)
+- [main.py:223-247](file://backend/main.py#L223-L247)
 
 ### Strict Response Model Details
 The AnalysisResult model enforces strict API contracts:
@@ -690,3 +726,21 @@ The AnalysisResult model enforces strict API contracts:
 
 **Section sources**
 - [main.py:65-73](file://backend/main.py#L65-L73)
+
+### Enhanced Threshold Enforcement System
+The defensive abstraction layer implements programmatic threshold enforcement to override LLM hallucinations:
+
+| Score Range | Forced Status | Override Logic |
+|-------------|---------------|----------------|
+| ≥ 75 | Dangerous | Always force Dangerous regardless of LLM output |
+| ≥ 30 | Suspicious | Override Safe to Suspicious if LLM misclassifies |
+| < 30 | Safe | Use Safe with proper validation |
+
+**Enhanced Features**:
+- **Robust Type Coercion**: Handles various data types and edge cases
+- **Field Alias Support**: Maps risk_score → score, flagged_reasons → reasons
+- **Status Validation**: Ensures valid status values with fallback logic
+- **Reasons Array Cleaning**: Filters and validates reason strings
+
+**Section sources**
+- [main.py:209-247](file://backend/main.py#L209-L247)
