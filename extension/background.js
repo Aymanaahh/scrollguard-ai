@@ -110,6 +110,45 @@ async function rememberFlaggedLinks(results) {
   }
 }
 
+// ── URL tracking-parameter sanitizer ────────────────────────────────────────
+
+/**
+ * Query-string parameter names added by ad networks, social platforms, and
+ * analytics SDKs.  Stripping them before sending URLs to the backend shrinks
+ * payloads (some fbclid/gclid values exceed 200 chars), prevents the LLM from
+ * wasting context on marketing metadata, and makes the scannedUrls dedup Set
+ * key on the meaningful portion of the URL.
+ *
+ * The base origin, path, hash, and any non-tracking query parameters are
+ * preserved so threat detection accuracy is unaffected.
+ */
+const TRACKING_PARAMS = new Set([
+  "fbclid", "gclid", "gclsrc", "msclkid", "twclid", "dclid",
+  "mc_eid", "igshid", "li_fat_id",
+  "utm_source", "utm_medium", "utm_campaign", "utm_term",
+  "utm_content", "utm_id", "utm_source_platform", "utm_creative_format",
+]);
+
+/**
+ * Return a copy of `url` with all recognised tracking query parameters
+ * removed.  Origin, path, hash, and non-tracking parameters are preserved.
+ * If `url` cannot be parsed, it is returned unchanged.
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+function stripTrackingParams(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch (_err) { return url; }
+
+  const kept = new URLSearchParams();
+  for (const [key, value] of parsed.searchParams) {
+    if (!TRACKING_PARAMS.has(key.toLowerCase())) kept.append(key, value);
+  }
+  parsed.search = kept.toString();
+  return parsed.toString();
+}
+
 /**
  * Resolve the backend URL from chrome.storage or fall back to default.
  */
@@ -144,6 +183,12 @@ async function analyzeLinksBatch(links) {
     };
   }
 
+  // Defense in depth: strip marketing tracking parameters (fbclid, gclid,
+  // utm_*, etc.) so the backend receives compact, meaningful URLs.
+  // content.js and popup.js also sanitise before calling, but this guards
+  // against any caller that skips the sanitiser.
+  const cleanLinks = links.map(stripTrackingParams);
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -153,7 +198,7 @@ async function analyzeLinksBatch(links) {
     const response = await fetch(backendUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: links }),
+      body: JSON.stringify({ urls: cleanLinks }),
       signal: controller.signal,
     });
 
@@ -192,7 +237,7 @@ async function analyzeLinksBatch(links) {
       // rejection (Chrome's extension error badge stays clean), and no
       // blocking "Backend timeout" error UI: the popup renders these as
       // ordinary Safe result cards.
-      return links.map((url) => ({
+      return cleanLinks.map((url) => ({
         url,
         status: "Safe",
         riskScore: 0,

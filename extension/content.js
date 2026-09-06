@@ -211,6 +211,45 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+  // ── URL tracking-parameter sanitizer ──────────────────────────────────────
+
+  /**
+   * Query-string parameter names added by ad networks, social platforms, and
+   * analytics SDKs.  Stripping them before sending URLs to the backend
+   * shrinks payloads (some fbclid/gclid values exceed 200 chars), prevents
+   * the LLM from wasting context on marketing metadata, and lets the
+   * scannedUrls Set key on the meaningful portion of the URL.
+   *
+   * Origin, path, hash, and non-tracking query parameters are preserved so
+   * threat detection accuracy is unaffected.
+   */
+  const TRACKING_PARAMS = new Set([
+    "fbclid", "gclid", "gclsrc", "msclkid", "twclid", "dclid",
+    "mc_eid", "igshid", "li_fat_id",
+    "utm_source", "utm_medium", "utm_campaign", "utm_term",
+    "utm_content", "utm_id", "utm_source_platform", "utm_creative_format",
+  ]);
+
+  /**
+   * Return a copy of `url` with all recognised tracking query parameters
+   * removed.  Origin, path, hash, and non-tracking parameters are preserved.
+   * If `url` cannot be parsed, it is returned unchanged.
+   *
+   * @param {string} url
+   * @returns {string}
+   */
+  function stripTrackingParams(url) {
+    let parsed;
+    try { parsed = new URL(url); } catch (_err) { return url; }
+
+    const kept = new URLSearchParams();
+    for (const [key, value] of parsed.searchParams) {
+      if (!TRACKING_PARAMS.has(key.toLowerCase())) kept.append(key, value);
+    }
+    parsed.search = kept.toString();
+    return parsed.toString();
+  }
+
   // ── Link extraction & validation ───────────────────────────────────────────
 
   /**
@@ -299,10 +338,15 @@
         const href = anchor.href;
         if (!isValidExternalLink(href)) continue;
 
+        // Sanitise before the dedup Set so two URLs differing only in
+        // tracking query parameters (fbclid, utm_source, …) collapse to
+        // one entry — saving backend quota on duplicate marketing hits.
+        const clean = stripTrackingParams(href);
+
         // URL-level dedup: only add to batch if not yet scanned
-        if (!scannedUrls.has(href)) {
-          scannedUrls.add(href);
-          batch.push({ element: anchor, href });
+        if (!scannedUrls.has(clean)) {
+          scannedUrls.add(clean);
+          batch.push({ element: anchor, href: clean });
         }
       }
     }
@@ -348,7 +392,13 @@
 
     if (isAllowlisted(window.location.hostname)) return;
 
-    const results = await sendToBackground([pageUrl]);
+    // Strip tracking parameters before sending to the backend so the LLM
+    // sees the meaningful portion of the URL only.
+    const cleanUrl = stripTrackingParams(pageUrl);
+    // Eagerly record the attempt so the popup flips to "Active" before
+    // the backend call returns (or times out).
+    recordAttempts(1);
+    const results = await sendToBackground([cleanUrl]);
     if (!Array.isArray(results) || results.length === 0) return;
 
     const result = results[0];
@@ -827,6 +877,14 @@
   let totalFlagged = 0;
 
   /**
+   * Running count of URLs dispatched to the backend (before any response
+   * arrives).  Incremented eagerly by recordAttempts() so the popup can
+   * show "Active" the moment a batch leaves the content script — even if
+   * the backend never replies (timeout / network error).
+   */
+  let totalAttempted = 0;
+
+  /**
    * Persist scan statistics to chrome.storage.local so the popup can
    * display them, and broadcast a live update to any open popup.
    */
@@ -834,6 +892,7 @@
     chrome.storage.local.set({
       sg_linksScanned: totalScanned,
       sg_linksFlagged: totalFlagged,
+      sg_linksAttempted: totalAttempted,
     });
     // Best-effort broadcast to open popup
     try {
@@ -841,6 +900,28 @@
         action: "updateStats",
         scanned: totalScanned,
         flagged: totalFlagged,
+        attempted: totalAttempted,
+      });
+    } catch (_e) { /* popup may not be open */ }
+  }
+
+  /**
+   * Eagerly bump the attempt counter by `count` and broadcast the new
+   * value to storage and any open popup.  Called BEFORE the backend call
+   * so the status chip flips to "Active" immediately instead of waiting
+   * up to 30 s for a timeout fallback.
+   *
+   * @param {number} count - Number of URLs about to be sent.
+   */
+  function recordAttempts(count) {
+    totalAttempted += count;
+    chrome.storage.local.set({ sg_linksAttempted: totalAttempted });
+    try {
+      chrome.runtime.sendMessage({
+        action: "updateStats",
+        scanned: totalScanned,
+        flagged: totalFlagged,
+        attempted: totalAttempted,
       });
     } catch (_e) { /* popup may not be open */ }
   }
@@ -854,6 +935,10 @@
   async function scanLinks(roots) {
     const newLinks = collectNewLinks(roots || document.body);
     if (newLinks.length === 0) return;
+
+    // Eagerly record the attempt count so the popup shows "Active"
+    // immediately, even if the backend times out or is unreachable.
+    recordAttempts(newLinks.length);
 
     const hrefs = newLinks.map((l) => l.href);
     const results = await sendToBackground(hrefs);

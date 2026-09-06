@@ -34,22 +34,29 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ── Stats display (single source for storage load + live updates) ────
-  function updateStats(scanned, flagged) {
+  function updateStats(scanned, flagged, attempted) {
     statScanned.textContent = scanned;
     statFlagged.textContent = flagged;
-    statStatus.textContent = scanned > 0 ? "Active" : "Waiting";
+    // Status flips to "Active" as soon as any URL has been scanned OR
+    // dispatched to the backend — so a timeout / network failure never
+    // leaves the chip permanently stuck on "Waiting".
+    statStatus.textContent = (scanned > 0 || attempted > 0) ? "Active" : "Waiting";
   }
 
   // Initial values from chrome.storage (persisted by content.js)
   chrome.storage.local.get(
-    ["sg_linksScanned", "sg_linksFlagged"],
-    (data) => updateStats(data.sg_linksScanned || 0, data.sg_linksFlagged || 0)
+    ["sg_linksScanned", "sg_linksFlagged", "sg_linksAttempted"],
+    (data) => updateStats(
+      data.sg_linksScanned || 0,
+      data.sg_linksFlagged || 0,
+      data.sg_linksAttempted || 0
+    )
   );
 
   // Live updates broadcast by content.js after every scan batch
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === "updateStats") {
-      updateStats(message.scanned || 0, message.flagged || 0);
+      updateStats(message.scanned || 0, message.flagged || 0, message.attempted || 0);
       // Keep an open history list in sync with newly flagged links.
       if (!flaggedHistory.hasAttribute("hidden")) {
         loadFlaggedLinks();
@@ -192,9 +199,12 @@ document.addEventListener("DOMContentLoaded", () => {
     resultsDiv.replaceChildren(buildSpinner());
 
     try {
+      // Strip tracking parameters (fbclid, utm_source, etc.) before sending
+      // to the backend so the LLM receives the meaningful URL only.
+      const cleanUrl = stripTrackingParams(tab.url);
       const results = await chrome.runtime.sendMessage({
         action: "scanPageLinks",
-        links: [tab.url],
+        links: [cleanUrl],
       });
 
       resultsDiv.replaceChildren();
@@ -219,10 +229,47 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       scanBtn.disabled = false;
       scanBtn.textContent = "Scan Active Tab";
+      // Belt-and-suspenders: guarantee the status chip resets to "Active"
+      // after any manual scan attempt, regardless of backend success or
+      // failure — so the UI never gets permanently stuck on "Waiting".
+      statStatus.textContent = "Active";
     }
   });
 
   // ── Helpers ────────────────────────────────────────────────────────────
+
+  /**
+   * Query-string parameter names added by ad networks, social platforms, and
+   * analytics SDKs.  Stripping them before sending URLs to the backend
+   * shrinks payloads and keeps the scanned URL focused on its meaningful
+   * origin + path.
+   */
+  const TRACKING_PARAMS = new Set([
+    "fbclid", "gclid", "gclsrc", "msclkid", "twclid", "dclid",
+    "mc_eid", "igshid", "li_fat_id",
+    "utm_source", "utm_medium", "utm_campaign", "utm_term",
+    "utm_content", "utm_id", "utm_source_platform", "utm_creative_format",
+  ]);
+
+  /**
+   * Return a copy of `url` with all recognised tracking query parameters
+   * removed.  Origin, path, hash, and non-tracking parameters are preserved.
+   * If `url` cannot be parsed, it is returned unchanged.
+   *
+   * @param {string} url
+   * @returns {string}
+   */
+  function stripTrackingParams(url) {
+    let parsed;
+    try { parsed = new URL(url); } catch (_err) { return url; }
+
+    const kept = new URLSearchParams();
+    for (const [key, value] of parsed.searchParams) {
+      if (!TRACKING_PARAMS.has(key.toLowerCase())) kept.append(key, value);
+    }
+    parsed.search = kept.toString();
+    return parsed.toString();
+  }
 
   function showError(message) {
     resultsDiv.replaceChildren();
