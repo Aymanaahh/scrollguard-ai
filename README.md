@@ -105,17 +105,19 @@ The system pairs a Chrome Manifest V3 extension with a Python FastAPI backend th
 └─────────────────────────────────────┘
 ```
 
-### Popup UI
-![Popup Dashboard](docs/screenshots/popup-dashboard.png)
-*The popup dashboard showing the auto-scan status banner, live statistics, and the manual scan fallback.*
+## 📸 Screenshots & Live Demo
 
-### Inline Threat Badges
-![Inline Warnings](docs/screenshots/inline-warnings.png)
-*Dangerous (red) and Suspicious (amber) inline badges with their detail modal on a social media feed.*
+### Real-Time Threat Detection Banner
+![ScrollGuard AI Banner Warning](assets/demo_banner.jpeg)
 
-### Data Flow Diagram
-![Architecture](docs/screenshots/data-flow-diagram.png)
-*End-to-end data flow from browser tab through service worker to FastAPI backend.*
+### Flagged Threat History Log
+![Flagged Threat History Popup](assets/popup_history.jpeg)
+
+### AI-Powered Interactive Risk Modal
+![Threat Modal Overlay](assets/thread_model.png)
+
+### AI-Powered Threat Explaination
+![Threat Modal Overlay](assets/threat_explain.png)
 
 ---
 
