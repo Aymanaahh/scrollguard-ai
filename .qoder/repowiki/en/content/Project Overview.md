@@ -4,6 +4,7 @@
 **Referenced Files in This Document**
 - [README.md](file://README.md)
 - [main.py](file://backend/main.py)
+- [heuristics.py](file://backend/heuristics.py)
 - [evaluate_engine.py](file://backend/evaluate_engine.py)
 - [manifest.json](file://extension/manifest.json)
 - [content.js](file://extension/content.js)
@@ -14,31 +15,32 @@
 
 ## Update Summary
 **Changes Made**
-- Updated architecture description to reflect Manifest V3 service worker architecture
-- Enhanced tech stack details with specific technologies and deployment options
-- Added comprehensive installation and setup instructions
-- Included cloud deployment guides for Render, Heroku, and Alibaba Cloud
-- Expanded future roadmap with Phase 2 WhatsApp/Telegram bot features
-- Updated data flow diagrams to show complete extension-backend communication
-- Enhanced security features documentation including zero-click scanning and SPA support
+- Enhanced problem statement section with specific South Asian scam threat examples
+- Updated solution architecture to reflect Manifest V3 service worker implementation
+- Added comprehensive visual demonstration references with screenshot gallery
+- Expanded technical specifications including Qwen LLM model details and detection pipeline
+- Improved installation and setup instructions with detailed step-by-step guidance
+- Enhanced cloud deployment options with Render, Heroku, Railway, and Alibaba Cloud specifics
+- Updated future roadmap with Phase 2 WhatsApp/Telegram bot features
+- Refined performance considerations and known limitations section
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
+2. [Problem Statement](#problem-statement)
+3. [Solution Architecture](#solution-architecture)
+4. [Core Components](#core-components)
+5. [Technical Implementation](#technical-implementation)
 6. [Installation & Setup](#installation--setup)
 7. [Cloud Deployment](#cloud-deployment)
-8. [Performance Considerations](#performance-considerations)
+8. [Performance & Limitations](#performance--limitations)
 9. [Future Roadmap](#future-roadmap)
-10. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Visual Demonstrations](#visual-demonstrations)
 11. [Conclusion](#conclusion)
 
 ## Introduction
-ScrollGuard AI is a real-time, AI-powered browser security extension and backend API built for the Alibaba Cloud AI Hackathon by Team Raven. It provides zero-click protection against phishing attempts, deceptive giveaways, fraudulent domains, and social media scam links by automatically scanning URLs and page content as users browse, returning structured risk assessments with clear threat levels: Safe, Suspicious, or Dangerous.
+ScrollGuard AI is a real-time, AI-powered browser security extension and backend API built for the **Alibaba Cloud AI Hackathon Pakistan 2026** by Team Raven. It provides zero-click protection against phishing attempts, deceptive giveaways, fraudulent domains, and social media scam links by automatically scanning URLs and page content as users browse, returning structured risk assessments with clear threat levels: Safe, Suspicious, or Dangerous.
 
-The solution combines a sophisticated Chrome Extension frontend with a Python FastAPI backend that leverages Alibaba Cloud's Qwen LLM (qwen3.6-plus via DashScope) to analyze context, urgency tactics, and domain reputation. Unlike traditional extensions that require manual scanning, ScrollGuard AI operates continuously in the background, providing immediate visual warnings when threats are detected.
+The solution combines a sophisticated Chrome Extension frontend (Manifest V3) with a Python FastAPI backend that leverages Alibaba Cloud's Qwen LLM (qwen3.8-flash via DashScope) to analyze context, urgency tactics, and domain reputation. Unlike traditional extensions that require manual scanning, ScrollGuard AI operates continuously in the background, providing immediate visual warnings when threats are detected.
 
 Key capabilities include:
 - **Zero-click auto-scanning**: Protection starts immediately upon page load without user interaction
@@ -48,59 +50,61 @@ Key capabilities include:
 - **Structured risk scoring**: JSON responses with numerical scores (0-100) and detailed explanations
 - **Automated evaluation benchmarking**: Continuous validation against curated scam datasets
 
-## Project Structure
-The project follows a modern hybrid architecture with clear separation between browser extension and backend services:
+## Problem Statement
+Online scams in Pakistan and South Asia are overwhelmingly **social-engineering attacks delivered through ordinary links** — pasted into Facebook feeds, WhatsApp groups, comment sections, and forwarded messages:
+
+- **Fake government welfare schemes** — pages impersonating **BISP / Ehsaas / PM Kisan** programs that harvest victims' CNIC numbers and bank details from unofficial `.tk` / `.ml` / `.ga` domains.
+- **Domain typosquatting** — look-alike brands (`g00gle.com`, `paypa1.com`, `amaz0n-deals.com`) that capture login credentials from hurried users.
+- **Fake lotteries and giveaways** — "Congratulations, you won!" pages paired with urgency language and unknown domains.
+- **Get-rich-quick and crypto-doubling schemes** spread through URL shorteners.
+
+Existing defenses fail against this threat model: browser blocklists only catch *known-bad* domains after victims have already been harmed, antivirus tools never inspect the links inside a social feed, and manual URL checkers require users to *notice* the threat and copy-paste it — which is precisely what scam victims never do.
+
+## Solution Architecture
+ScrollGuard AI inverts the model: **the user never has to act**. A `MutationObserver` watches the live DOM, so every link that appears while you scroll — including infinite-scroll feeds on Facebook, X, Instagram, Reddit, and WhatsApp Web — is validated, sanitized, batched, and classified in the background by a two-stage engine (rule-based heuristics, then Alibaba Cloud's Qwen LLM). Threats are surfaced **inline**, exactly where the dangerous link sits, as colored outlines, clickable badges, and full-screen risk modals — plus a session-scoped **Flagged Threat History** in the popup.
 
 ```mermaid
 graph TB
 subgraph "Browser Extension (Manifest V3)"
-M["manifest.json"]
-C["content.js - Zero-click scanner"]
-B["background.js - Service Worker"]
-P["popup.html + popup.js - Dashboard"]
+CS["Content Script<br/>Zero-click scanner"]
+SW["Service Worker<br/>Network proxy"]
+PU["Popup Interface<br/>Dashboard & history"]
 end
 subgraph "Backend Services"
-API["FastAPI /analyze endpoint"]
-SCAN["FastAPI /scan_links endpoint"]
-HEU["Heuristic Engine"]
-AI["Qwen LLM Integration"]
+API["FastAPI Endpoints<br/>/analyze, /scan_links"]
+HEU["Heuristic Engine<br/>8-rule pre-filter"]
+AI["Qwen LLM Integration<br/>qwen3.8-flash"]
 end
 subgraph "External Services"
 DASH["DashScope API"]
 ALIBABA["Alibaba Cloud"]
 end
-M --> C
-M --> B
-M --> P
-C -. chrome.runtime.sendMessage .-> B
-B -. fetch() .-> SCAN
-SCAN --> HEU
-HEU --> |High confidence| SCAN
+CS --> SW
+SW --> API
+API --> HEU
+HEU --> |High confidence| API
 HEU --> |Needs AI| AI
 AI --> DASH
 DASH --> ALIBABA
+PU --> SW
 ```
 
 **Diagram sources**
 - [manifest.json:1-47](file://extension/manifest.json#L1-L47)
-- [content.js:1-826](file://extension/content.js#L1-L826)
-- [background.js:1-69](file://extension/background.js#L1-L69)
-- [main.py:1-329](file://backend/main.py#L1-L329)
-
-**Section sources**
-- [README.md:9-73](file://README.md#L9-L73)
-- [manifest.json:1-47](file://extension/manifest.json#L1-L47)
+- [content.js:1-200](file://extension/content.js#L1-L200)
+- [background.js:1-305](file://extension/background.js#L1-L305)
+- [main.py:1-381](file://backend/main.py#L1-L381)
 
 ## Core Components
 
 ### Chrome Extension (Frontend)
 The extension implements a sophisticated three-layer architecture:
 
-**Content Script (content.js)**: Performs zero-click scanning on every page load, using MutationObserver to detect dynamically injected links from social media feeds and other SPAs. Implements advanced filtering including trusted domain allowlists, authentication path detection, and URL deduplication to minimize unnecessary API calls.
+**Content Script (content.js)**: Performs zero-click scanning on every page load, using MutationObserver to detect dynamically injected links from social media feeds and other SPAs. Implements advanced filtering including trusted domain allowlists, authentication path detection, and URL deduplication to minimize unnecessary API calls. Features include tracking parameter stripping, interactive threat badges, and modal overlays.
 
-**Service Worker (background.js)**: Acts as a privileged network proxy that bypasses CORS restrictions, handling all backend communication and managing the connection between content scripts and the FastAPI backend.
+**Service Worker (background.js)**: Acts as a privileged network proxy that bypasses CORS restrictions, handling all backend communication and managing the connection between content scripts and the FastAPI backend. Includes session-scoped flagged threat history and graceful error handling.
 
-**Popup Interface (popup.html + popup.js)**: Provides a comprehensive dashboard showing real-time scan statistics, active status monitoring, and manual scanning fallback capabilities.
+**Popup Interface (popup.html + popup.js)**: Provides a comprehensive dashboard showing real-time scan statistics, active status monitoring, and manual scanning fallback capabilities with animated status indicators.
 
 ### FastAPI Backend
 The backend provides two primary endpoints:
@@ -109,91 +113,33 @@ The backend provides two primary endpoints:
 
 Both endpoints implement a two-stage detection pipeline: heuristic pre-filtering for immediate results when high confidence is achieved, followed by Qwen LLM analysis for complex cases requiring contextual understanding.
 
-### Evaluation Engine
-An automated testing system that validates detection accuracy against known scam samples, providing classification reports and confusion matrices to measure performance improvements over time.
+### Detection Engine
+An intelligent two-stage system combining:
+- **Heuristic Pre-filtering**: 8-rule pattern matching for immediate threat detection
+- **AI Deep Analysis**: Qwen LLM contextual analysis with few-shot prompting
+- **Threshold Enforcement**: Programmatic score-to-status mapping preventing hallucinations
 
 **Section sources**
-- [content.js:1-826](file://extension/content.js#L1-L826)
-- [background.js:1-69](file://extension/background.js#L1-L69)
-- [popup.html:1-340](file://extension/popup.html#L1-L340)
-- [popup.js:1-168](file://extension/popup.js#L1-L168)
-- [main.py:1-329](file://backend/main.py#L1-L329)
-- [evaluate_engine.py:1-78](file://backend/evaluate_engine.py#L1-L78)
+- [content.js:1-200](file://extension/content.js#L1-L200)
+- [background.js:1-305](file://extension/background.js#L1-L305)
+- [popup.html:1-200](file://extension/popup.html#L1-L200)
+- [main.py:1-381](file://backend/main.py#L1-L381)
+- [heuristics.py:1-110](file://backend/heuristics.py#L1-L110)
 
-## Architecture Overview
-ScrollGuard AI employs a sophisticated hybrid detection approach combining immediate client-side heuristics with powerful AI-driven analysis:
+## Technical Implementation
 
-```mermaid
-sequenceDiagram
-participant U as "User Browser"
-participant CS as "Content Script"
-participant SW as "Service Worker"
-participant BE as "FastAPI Backend"
-participant HEU as "Heuristic Engine"
-participant AI as "Qwen LLM"
-U->>CS : Page loads
-CS->>CS : Extract URLs & text
-CS->>SW : sendMessage({links : [...]})
-SW->>BE : POST /scan_links
-BE->>HEU : Analyze URLs
-alt High confidence result
-HEU-->>BE : {status, score, reasons}
-else Needs AI analysis
-HEU->>AI : Contextual analysis request
-AI-->>BE : Structured JSON response
-end
-BE-->>SW : Results array
-SW-->>CS : Processed results
-CS->>CS : Inject badges & banners
-CS->>U : Visual threat indicators
-```
-
-**Diagram sources**
-- [content.js:205-220](file://extension/content.js#L205-L220)
-- [background.js:39-57](file://extension/background.js#L39-L57)
-- [main.py:209-275](file://backend/main.py#L209-L275)
-
-The architecture ensures minimal latency through intelligent filtering while maintaining high accuracy through AI analysis when needed.
-
-## Detailed Component Analysis
-
-### Chrome Extension: Zero-Click Content Scanner
+### Zero-Click Content Scanning
 The content script implements advanced real-time scanning with sophisticated filtering mechanisms:
 
 **Key Features:**
 - **MutationObserver integration**: Detects dynamically injected links from infinite-scroll feeds on platforms like Facebook, Instagram, Twitter, and Reddit
 - **Trusted domain allowlist**: Automatically skips 20+ major domains (google.com, github.com, etc.) to conserve API quota and eliminate false positives
 - **Authentication path filtering**: Skips standard login/signup paths to prevent false positives on legitimate authentication flows
+- **URL sanitization**: Strips tracking parameters (fbclid, gclid, utm_*) before sending to backend
 - **URL deduplication**: Uses Sets and WeakSets to ensure each unique link triggers exactly one API call per session
 - **Debounced processing**: 300ms debouncing to handle bursts of DOM mutations efficiently
 
-**Visual Indicators:**
-- **Inline threat badges**: Color-coded badges ([DANGEROUS SCAN], [SUSPICIOUS SCAN]) injected next to flagged links
-- **Page-level warning banners**: Full-width banners at the top of dangerous/suspicious pages
-- **Interactive detail modals**: Clickable badges open comprehensive explanation modals with risk scores and reasoning
-
-```mermaid
-flowchart TD
-Start(["Page Load"]) --> Extract["Extract URLs & Text"]
-Extract --> Filter["Apply Filters:<br/>- Trusted domains<br/>- Auth paths<br/>- Same-origin"]
-Filter --> Dedup{"New URLs?"}
-Dedup --> |No| End(["Skip"])
-Dedup --> |Yes| Send["Send to Background"]
-Send --> Analyze["Background analyzes batch"]
-Analyze --> Results{"Results received?"}
-Results --> |No| End
-Results --> |Yes| Mark["Mark flagged links<br/>Inject badges/banners"]
-Mark --> End
-```
-
-**Diagram sources**
-- [content.js:171-194](file://extension/content.js#L171-L194)
-- [content.js:740-770](file://extension/content.js#L740-L770)
-
-**Section sources**
-- [content.js:23-826](file://extension/content.js#L23-L826)
-
-### Chrome Extension: Service Worker Proxy
+### Service Worker Proxy Architecture
 The background service worker acts as a privileged network proxy, solving critical CORS and Mixed Content issues:
 
 **Architecture Benefits:**
@@ -202,24 +148,8 @@ The background service worker acts as a privileged network proxy, solving critic
 - **Error handling**: Graceful error management with timeout handling and connection failure recovery
 - **Configuration flexibility**: Supports both local development and cloud deployment through configurable backend URLs
 
-**Section sources**
-- [background.js:1-69](file://extension/background.js#L1-L69)
-
-### Chrome Extension: Interactive Popup Dashboard
-The popup provides comprehensive monitoring and control capabilities:
-
-**Features:**
-- **Real-time statistics**: Live display of scanned and flagged link counts
-- **Auto-scan status**: Visual indicator showing active scanning status with animated pulse
-- **Manual scanning fallback**: On-demand scanning capability for verification
-- **Result visualization**: Detailed cards showing threat levels, risk scores, explanations, and flagged reasons
-
-**Section sources**
-- [popup.html:1-340](file://extension/popup.html#L1-L340)
-- [popup.js:1-168](file://extension/popup.js#L1-L168)
-
-### Backend: Two-Stage Detection Pipeline
-The FastAPI backend implements an intelligent two-stage analysis process:
+### Two-Stage Detection Pipeline
+The FastAPI backend implements an intelligent analysis process:
 
 **Stage 1 - Heuristic Pre-filtering:**
 - Rapid rule-based analysis using pattern matching for known threat indicators
@@ -238,19 +168,10 @@ The FastAPI backend implements an intelligent two-stage analysis process:
 - Efficient error handling and retry logic
 
 **Section sources**
-- [main.py:15-329](file://backend/main.py#L15-L329)
-
-### Evaluation Engine: Automated Benchmarking
-The evaluation system provides continuous validation of detection accuracy:
-
-**Capabilities:**
-- **Dataset loading**: Reads from scam_dataset.json containing known malicious and benign URLs
-- **Batch processing**: Sends all test URLs to the backend simultaneously
-- **Performance metrics**: Generates classification reports and confusion matrices
-- **Per-sample analysis**: Detailed output showing expected vs. predicted classifications
-
-**Section sources**
-- [evaluate_engine.py:1-78](file://backend/evaluate_engine.py#L1-L78)
+- [content.js:1-200](file://extension/content.js#L1-L200)
+- [background.js:1-305](file://extension/background.js#L1-L305)
+- [main.py:1-381](file://backend/main.py#L1-L381)
+- [heuristics.py:1-110](file://backend/heuristics.py#L1-L110)
 
 ## Installation & Setup
 
@@ -265,7 +186,7 @@ The evaluation system provides continuous validation of detection accuracy:
 cd backend
 
 # Install dependencies
-pip install fastapi uvicorn openai python-dotenv pydantic requests
+pip install fastapi uvicorn openai python-dotenv pydantic
 
 # Configure environment variables
 cp .env.example .env
@@ -295,22 +216,18 @@ chrome.storage.local.set({
 ```
 
 **Section sources**
-- [README.md:122-178](file://README.md#L122-L178)
+- [README.md:205-276](file://README.md#L205-L276)
 
 ## Cloud Deployment
 
-### Render Deployment
+### PaaS Deployment Options
 The backend includes a Procfile for standard PaaS deployment:
 
 ```
 web: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-**Steps:**
-1. Push backend directory to GitHub repository
-2. Create new Web Service on Render and connect repository
-3. Set environment variable: `DASHSCOPE_API_KEY=<your_key>`
-4. Deploy - Render automatically configures PORT variable
+**Render / Heroku / Railway** — push the `backend/` directory to a GitHub repository, create a Web Service, set the `DASHSCOPE_API_KEY` environment variable, and deploy (the platform injects `PORT` automatically).
 
 ### Alibaba Cloud Deployment
 For production deployments on Alibaba Cloud infrastructure:
@@ -326,15 +243,15 @@ Optional containerized deployment:
 FROM python:3.12-slim
 WORKDIR /app
 COPY backend/ .
-RUN pip install --no-cache-dir fastapi uvicorn openai python-dotenv pydantic requests
+RUN pip install --no-cache-dir fastapi uvicorn openai python-dotenv pydantic
 EXPOSE 8000
 CMD ["python", "main.py"]
 ```
 
 **Section sources**
-- [README.md:181-214](file://README.md#L181-L214)
+- [README.md:279-304](file://README.md#L279-L304)
 
-## Performance Considerations
+## Performance & Limitations
 
 ### Optimization Strategies
 - **Hybrid detection reduces latency**: Immediate local checks provide instant feedback without network overhead
@@ -347,10 +264,12 @@ CMD ["python", "main.py"]
 - **Network efficiency**: Debounced mutation observation prevents excessive API calls during rapid DOM changes
 - **Concurrent processing**: Async operations and asyncio.gather for efficient batch analysis
 
-### Scalability Features
-- **Rate limiting**: Configurable semaphore limits concurrent AI calls to prevent API throttling
-- **Error resilience**: Graceful degradation when backend is unavailable
-- **Configurable timeouts**: 30-second timeout prevents hanging connections
+### Known Limitations
+- **Link-only scanning** — the extension analyzes `<a>` `href` attributes, not full DOM paragraph text, image sources, or embedded scripts.
+- **Auth-path links skipped** — links containing authentication paths are intentionally never sent to the backend to eliminate false positives; the main page URL itself is still always scanned.
+- **Session-scoped history** — flagged links persist for the current browsing session only (cleared on browser restart); there is no cross-session persistent log yet.
+- **Backend dependency** — AI analysis requires a running FastAPI backend (local or cloud); the heuristic pre-filter still applies without it.
+- **Rate limits** — batches are capped at 100 URLs and 5 concurrent LLM calls, so very heavy pages may resolve progressively.
 
 ## Future Roadmap
 
@@ -365,45 +284,25 @@ Planned expansion includes a **WhatsApp and Telegram forwarding bot** that prote
 - **User-configurable rules**: Domain whitelists and heuristic sensitivity controls via options page
 
 **Section sources**
-- [README.md:267-280](file://README.md#L267-L280)
+- [README.md:361-372](file://README.md#L361-L372)
 
-## Troubleshooting Guide
+## Visual Demonstrations
 
-### Common Issues and Solutions
+### Real-Time Threat Detection Banner
+![ScrollGuard AI Banner Warning](assets/demo_banner.png)
 
-**Backend Connectivity Issues:**
-- Ensure FastAPI server is running on expected address/port
-- Verify CORS configuration allows extension communication
-- Check firewall settings if deploying to cloud environments
+### Flagged Threat History Log
+![Flagged Threat History Popup](assets/popup_history.png)
 
-**Environment Configuration:**
-- Confirm DASHSCOPE_API_KEY is properly set in backend environment
-- Verify .env file syntax and proper key formatting
-- Check network connectivity to DashScope API endpoints
+### AI-Powered Interactive Risk Modal
+![Threat Modal Overlay](assets/threat_model.png)
 
-**Extension Communication:**
-- Validate chrome.runtime.sendMessage calls succeed
-- Check service worker logs for connection errors
-- Ensure proper permissions in manifest.json
-
-**Performance Issues:**
-- Monitor API rate limits and adjust concurrent call limits
-- Review trusted domain list effectiveness
-- Check for memory leaks in long-running sessions
-
-**Evaluation Script Problems:**
-- Verify scam_dataset.json exists and contains valid data
-- Ensure backend is accessible at configured URL
-- Check Python dependencies including sklearn for metrics
-
-**Section sources**
-- [main.py:27-33](file://backend/main.py#L27-L33)
-- [background.js:22-33](file://extension/background.js#L22-L33)
-- [evaluate_engine.py:35-41](file://backend/evaluate_engine.py#L35-L41)
+### AI Threat Explanation
+![Threat Explanation Detail](assets/threat_explain.png)
 
 ## Conclusion
 ScrollGuard AI delivers comprehensive, real-time protection against phishing and scam links through its sophisticated hybrid architecture. The combination of immediate client-side heuristics and powerful AI-driven analysis provides both speed and accuracy, while the zero-click design ensures protection without user intervention.
 
-The extension's innovative approach to SPA support, combined with interactive visual indicators and detailed explanations, creates an intuitive user experience that educates users about online threats while protecting them in real-time. With robust deployment options and a clear roadmap for future enhancements, ScrollGuard AI represents a significant advancement in browser-based security solutions.
+Built specifically for the Alibaba Cloud AI Hackathon Pakistan 2026 by Team Raven, this project demonstrates the practical application of AI technology in addressing real-world cybersecurity challenges, particularly in protecting users from increasingly sophisticated phishing and scam attacks prevalent in South Asia.
 
-Built specifically for the Alibaba Cloud AI Hackathon by Team Raven, this project demonstrates the practical application of AI technology in addressing real-world cybersecurity challenges, particularly in protecting users from increasingly sophisticated phishing and scam attacks.
+The extension's innovative approach to SPA support, combined with interactive visual indicators and detailed explanations, creates an intuitive user experience that educates users about online threats while protecting them in real-time. With robust deployment options and a clear roadmap for future enhancements, ScrollGuard AI represents a significant advancement in browser-based security solutions.

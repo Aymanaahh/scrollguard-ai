@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: main
 nodes_managed: true
-exported_at: "2026-09-06T12:13:37Z"
+exported_at: "2026-09-07T17:00:25Z"
 modules:
     "":
-        dir_name: ScrollGuard AI Phishing Protection Suite
-        title: ScrollGuard AI Phishing Protection Suite
+        dir_name: ScrollGuard AI — Chrome Extension + Local Backend
+        title: ScrollGuard AI — Chrome Extension + Local Backend
         scope:
             - README.md
         source_files: []
@@ -17,8 +17,8 @@ modules:
         depends_on: []
         related_to: []
     backend:
-        dir_name: ScrollGuard AI Detection Engine (FastAPI Backend)
-        title: ScrollGuard AI Detection Engine (FastAPI Backend)
+        dir_name: ScrollGuard AI URL Threat Classification Backend
+        title: ScrollGuard AI URL Threat Classification Backend
         scope:
             - backend/
         source_files: []

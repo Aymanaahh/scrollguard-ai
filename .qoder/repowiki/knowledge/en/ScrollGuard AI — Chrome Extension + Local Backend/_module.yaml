@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: ScrollGuard AI Phishing Protection Suite
+title: ScrollGuard AI — Chrome Extension + Local Backend
 scope:
     - README.md
 source_files: []

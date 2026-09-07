@@ -1,0 +1,1 @@
+Pairs a Chrome MV3 content-scanning extension with a local FastAPI backend that classifies visited links as Safe, Suspicious, or Dangerous via Alibaba Qwen LLM analysis.

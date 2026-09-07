@@ -14,12 +14,11 @@
 
 ## Update Summary
 **Changes Made**
-- **Model Upgrade**: Updated from qwen3.5-plus-2026-02-15 to qwen3.8-flash for enhanced performance and improved threat detection accuracy
-- **Enhanced Defensive Abstraction Layer**: Improved _normalize_llm_result function with programmatic threshold enforcement to override LLM hallucinations
-- **Recalibrated Scoring Thresholds**: Updated classification thresholds (Dangerous: 75-100, Suspicious: 30-74, Safe: 0-29) for more accurate threat assessment
-- **Performance Optimizations**: Added max_tokens parameter (150) for faster, more concise JSON completions
-- **Streamlined System Prompt**: Enhanced prompt engineering for better reliability against LLM inconsistencies and improved few-shot examples
-- **Improved Error Handling**: Enhanced response normalization with better field alias handling and type coercion
+- **Version Update**: Updated FastAPI application to version 2.1.0 indicating ongoing development and feature additions
+- **Enhanced Model Integration**: Maintained qwen3.8-flash model for enhanced performance and threat detection accuracy
+- **Improved Response Models**: Enhanced strict response models with better validation and error handling
+- **Optimized Processing**: Continued use of deterministic processing with temperature=0 and max_tokens=150 optimization
+- **Enhanced Error Handling**: Improved defensive abstraction layer with programmatic threshold enforcement
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -36,7 +35,7 @@
 ## Introduction
 This document provides comprehensive API documentation for the ScrollGuard AI backend RESTful service built with an **asynchronous FastAPI architecture**. The system features a fully async implementation with AsyncOpenAI client integration for DashScope, concurrent URL analysis capabilities, sophisticated heuristic pre-screening, and robust error handling. It covers server configuration (CORS, async OpenAI client setup), endpoint specifications (health check, content analysis, and batch URL scanning), authentication via environment variables, error handling strategies, evaluation framework integration, client implementation guidelines, and debugging using FastAPI's interactive documentation.
 
-**Updated**: The backend now uses the enhanced qwen3.8-flash model providing improved performance and enhanced threat detection accuracy, along with strict response models, deterministic processing with temperature=0, sophisticated LLM result normalization with defensive abstraction layer, and recalibrated scoring thresholds for improved reliability and consistency.
+**Updated**: The backend is now running version 2.1.0 with enhanced stability improvements while maintaining the existing API structure and functionality. The system continues to leverage the qwen3.8-flash model providing improved performance and enhanced threat detection accuracy, along with strict response models, deterministic processing with temperature=0, sophisticated LLM result normalization with defensive abstraction layer, and recalibrated scoring thresholds for improved reliability and consistency.
 
 ## Project Structure
 The backend is organized with clear separation of concerns and modern async patterns:
@@ -51,7 +50,7 @@ The backend is organized with clear separation of concerns and modern async patt
 
 ```mermaid
 graph TB
-A["AsyncFastAPI App<br/>main.py"] --> B["CORS Middleware<br/>main.py"]
+A["AsyncFastAPI App v2.1.0<br/>main.py"] --> B["CORS Middleware<br/>main.py"]
 A --> C["AsyncOpenAI Client<br/>DashScope Integration"]
 A --> D["Endpoints:<br/>GET /<br/>POST /analyze<br/>POST /scan_links<br/>main.py"]
 E["Enhanced Heuristic Engine<br/>heuristics.py"] --> D
@@ -70,19 +69,16 @@ Q["Performance Optimization<br/>max_tokens=150"] --> O
 ```
 
 **Diagram sources**
-- [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:209-247](file://backend/main.py#L209-L247)
-- [main.py:285-293](file://backend/main.py#L285-L293)
-- [main.py:324-326](file://backend/main.py#L324-L326)
-- [main.py:327-345](file://backend/main.py#L327-L345)
-- [main.py:348-358](file://backend/main.py#L348-L358)
-- [Procfile:1-2](file://backend/Procfile#L1-L2)
+- [main.py:52](file://backend/main.py#L52)
+- [main.py:54-60](file://backend/main.py#L54-L60)
+- [main.py:45-48](file://backend/main.py#L45-L48)
+- [main.py:331-367](file://backend/main.py#L331-L367)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
+- [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 **Section sources**
-- [main.py:1-372](file://backend/main.py#L1-L372)
+- [main.py:1-381](file://backend/main.py#L1-L381)
 - [heuristics.py:1-110](file://backend/heuristics.py#L1-L110)
 - [evaluate_engine.py:1-78](file://backend/evaluate_engine.py#L1-L78)
 - [scam_dataset.json:1-37](file://backend/scam_dataset.json#L1-L37)
@@ -92,7 +88,7 @@ Q["Performance Optimization<br/>max_tokens=150"] --> O
 - [README.md:63-143](file://README.md#L63-L143)
 
 ## Core Components
-- **Asynchronous FastAPI application** with CORS enabled for browser extension communication
+- **Asynchronous FastAPI application v2.1.0** with CORS enabled for browser extension communication
 - **AsyncOpenAI client** configured for Alibaba Cloud DashScope with **qwen3.8-flash model** for enhanced performance and threat detection
 - **Pydantic models** defining request/response schemas for structured validation and auto-generated docs
 - **Enhanced heuristic scanning engine** with sophisticated pattern matching for suspicious TLDs, URL shortener detection, typosquatting detection, and refined risk scoring
@@ -119,15 +115,13 @@ Key behaviors:
 - **Updated**: Enhanced Qwen model (qwen3.8-flash) provides improved performance and enhanced threat detection capabilities with optimized token usage
 
 **Section sources**
-- [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:55-73](file://backend/main.py#L55-L73)
-- [main.py:90-91](file://backend/main.py#L90-L91)
-- [main.py:103-168](file://backend/main.py#L103-L168)
-- [main.py:177-208](file://backend/main.py#L177-L208)
-- [main.py:209-210](file://backend/main.py#L209-L210)
-- [main.py:223-250](file://backend/main.py#L223-L250)
-- [main.py:288-295](file://backend/main.py#L288-L295)
-- [main.py:324-360](file://backend/main.py#L324-L360)
+- [main.py:52](file://backend/main.py#L52)
+- [main.py:54-60](file://backend/main.py#L54-L60)
+- [main.py:45-48](file://backend/main.py#L45-L48)
+- [main.py:64-82](file://backend/main.py#L64-L82)
+- [main.py:204-205](file://backend/main.py#L204-L205)
+- [main.py:268-327](file://backend/main.py#L268-L327)
+- [main.py:331-367](file://backend/main.py#L331-L367)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 ## Architecture Overview
@@ -138,7 +132,7 @@ The backend exposes a minimal REST API backed by an external LLM with enhanced h
 ```mermaid
 sequenceDiagram
 participant Client as "Client"
-participant FastAPI as "AsyncFastAPI App<br/>main.py"
+participant FastAPI as "AsyncFastAPI App v2.1.0<br/>main.py"
 participant Semaphore as "Concurrency Control<br/>asyncio.Semaphore(5)"
 participant Heuristics as "Heuristic Engine<br/>heuristics.py"
 participant LLM as "DashScope API<br/>qwen3.8-flash"
@@ -175,12 +169,11 @@ Eval-->>Eval : Compute accuracy metrics
 ```
 
 **Diagram sources**
-- [main.py:90-91](file://backend/main.py#L90-L91)
-- [main.py:123-137](file://backend/main.py#L123-L137)
-- [main.py:209-210](file://backend/main.py#L209-L210)
-- [main.py:223-250](file://backend/main.py#L223-L250)
-- [main.py:285-293](file://backend/main.py#L285-L293)
-- [main.py:324-360](file://backend/main.py#L324-L360)
+- [main.py:331-333](file://backend/main.py#L331-L333)
+- [main.py:336-354](file://backend/main.py#L336-L354)
+- [main.py:204-205](file://backend/main.py#L204-L205)
+- [main.py:268-327](file://backend/main.py#L268-L327)
+- [main.py:357-367](file://backend/main.py#L357-L367)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 - [evaluate_engine.py:30-77](file://backend/evaluate_engine.py#L30-L77)
 
@@ -205,7 +198,7 @@ Example responses:
   - Body: {"message": "ScrollGuard AI Detection Engine is active!"}
 
 **Section sources**
-- [main.py:322-324](file://backend/main.py#L322-L324)
+- [main.py:331-333](file://backend/main.py#L331-L333)
 
 ### Content Analysis Endpoint: POST /analyze
 - Method: POST
@@ -283,16 +276,16 @@ Return200 --> End
 ```
 
 **Diagram sources**
-- [main.py:327-345](file://backend/main.py#L327-L345)
-- [main.py:259-318](file://backend/main.py#L259-L318)
-- [main.py:209-247](file://backend/main.py#L209-L247)
-- [main.py:285-293](file://backend/main.py#L285-L293)
+- [main.py:336-354](file://backend/main.py#L336-L354)
+- [main.py:268-327](file://backend/main.py#L268-L327)
+- [main.py:204-205](file://backend/main.py#L204-L205)
+- [main.py:218-256](file://backend/main.py#L218-L256)
 - [heuristics.py:40-109](file://backend/heuristics.py#L40-L109)
 
 **Section sources**
-- [main.py:55-58](file://backend/main.py#L55-L58)
-- [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:327-345](file://backend/main.py#L327-L345)
+- [main.py:64-68](file://backend/main.py#L64-L68)
+- [main.py:74-82](file://backend/main.py#L74-L82)
+- [main.py:336-354](file://backend/main.py#L336-L354)
 
 ### Batch URL Processing Endpoint: POST /scan_links
 - Method: POST
@@ -351,12 +344,12 @@ ReturnResults --> End(["End"])
 ```
 
 **Diagram sources**
-- [main.py:348-358](file://backend/main.py#L348-L358)
-- [main.py:209-210](file://backend/main.py#L209-L210)
+- [main.py:357-367](file://backend/main.py#L357-L367)
+- [main.py:204-205](file://backend/main.py#L204-L205)
 
 **Section sources**
-- [main.py:61-62](file://backend/main.py#L61-L62)
-- [main.py:348-358](file://backend/main.py#L348-L358)
+- [main.py:70-71](file://backend/main.py#L70-L71)
+- [main.py:357-367](file://backend/main.py#L357-L367)
 
 ### Enhanced Heuristic Scanning Engine
 - **Enhanced Component**: Advanced rule-based URL analysis engine that identifies common scam patterns before AI processing
@@ -403,7 +396,7 @@ Benefits:
 - Score < 30: Use "Safe" status with proper validation
 
 **Section sources**
-- [main.py:209-247](file://backend/main.py#L209-L247)
+- [main.py:218-256](file://backend/main.py#L218-L256)
 
 ### CORS Middleware Configuration
 - Allows cross-origin requests from any origin, method, and header to support browser extension communication
@@ -416,7 +409,7 @@ Configuration highlights:
 - allow_headers: ["*"]
 
 **Section sources**
-- [main.py:45-51](file://backend/main.py#L45-L51)
+- [main.py:54-60](file://backend/main.py#L54-L60)
 
 ### AsyncOpenAI Client Setup for DashScope Integration
 - Uses the **AsyncOpenAI SDK** with a custom base_url pointing to DashScope's compatible endpoint
@@ -434,9 +427,9 @@ Notes:
 - **Enhanced**: Max tokens limit improves response speed and reduces token usage
 
 **Section sources**
-- [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:285-293](file://backend/main.py#L285-L293)
-- [test_qwen.py:1-34](file://backend/test_qwen.py#L1-L34)
+- [main.py:45-48](file://backend/main.py#L45-L48)
+- [main.py:294-302](file://backend/main.py#L294-L302)
+- [test_qwen.py:12-15](file://backend/test_qwen.py#L12-L15)
 
 ### Direct Server Deployment with Uvicorn
 - **New Feature**: Built-in Uvicorn entry point for direct server deployment
@@ -455,7 +448,7 @@ Configuration Features:
 - Port configuration via environment variable with default fallback
 
 **Section sources**
-- [main.py:363-372](file://backend/main.py#L363-L372)
+- [main.py:372-381](file://backend/main.py#L372-L381)
 - [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 ### Evaluation Framework Integration
@@ -508,9 +501,9 @@ Accuracy calculation:
   - Consistent error message format
 
 **Section sources**
-- [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:209-247](file://backend/main.py#L209-L247)
-- [main.py:327-345](file://backend/main.py#L327-L345)
+- [main.py:74-82](file://backend/main.py#L74-L82)
+- [main.py:218-256](file://backend/main.py#L218-L256)
+- [main.py:336-354](file://backend/main.py#L336-L354)
 
 ## Dependency Analysis
 High-level dependencies:
@@ -524,7 +517,7 @@ High-level dependencies:
 
 ```mermaid
 graph LR
-Main["main.py"] --> FastAPI["FastAPI"]
+Main["main.py v2.1.0"] --> FastAPI["FastAPI"]
 Main --> Pydantic["Pydantic Models"]
 Main --> DotEnv["python-dotenv"]
 Main --> AsyncOpenAI["AsyncOpenAI SDK"]
@@ -541,16 +534,16 @@ Procfile["Procfile"] --> Uvicorn
 ```
 
 **Diagram sources**
-- [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:363-372](file://backend/main.py#L363-L372)
+- [main.py:45-48](file://backend/main.py#L45-L48)
+- [main.py:372-381](file://backend/main.py#L372-L381)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 - [test_qwen.py:1-15](file://backend/test_qwen.py#L1-L15)
 - [Procfile:1-2](file://backend/Procfile#L1-L2)
 
 **Section sources**
-- [main.py:15-38](file://backend/main.py#L15-L38)
-- [main.py:363-372](file://backend/main.py#L363-L372)
+- [main.py:45-48](file://backend/main.py#L45-L48)
+- [main.py:372-381](file://backend/main.py#L372-L381)
 - [heuristics.py:11-12](file://backend/heuristics.py#L11-L12)
 - [evaluate_engine.py:12-17](file://backend/evaluate_engine.py#L12-L17)
 
@@ -611,10 +604,10 @@ Debugging with FastAPI docs:
 - **Enhanced**: Monitor performance improvements with the new qwen3.8-flash model and max_tokens optimization
 
 **Section sources**
-- [main.py:32-34](file://backend/main.py#L32-L34)
-- [main.py:327-345](file://backend/main.py#L327-L345)
-- [main.py:348-358](file://backend/main.py#L348-L358)
-- [main.py:363-372](file://backend/main.py#L363-L372)
+- [main.py:42-43](file://backend/main.py#L42-L43)
+- [main.py:336-354](file://backend/main.py#L336-L354)
+- [main.py:357-367](file://backend/main.py#L357-L367)
+- [main.py:372-381](file://backend/main.py#L372-L381)
 - [README.md:127-143](file://README.md#L127-L143)
 
 ## Conclusion
@@ -708,10 +701,10 @@ The enhanced heuristic engine applies the following sophisticated detection rule
 - **Benefits**: Improved performance, enhanced threat detection accuracy, better phishing detection, more accurate risk scoring, and optimized token usage
 
 **Section sources**
-- [main.py:285-293](file://backend/main.py#L285-L293)
-- [main.py:65-73](file://backend/main.py#L65-L73)
-- [main.py:209-210](file://backend/main.py#L209-L210)
-- [main.py:223-247](file://backend/main.py#L223-L247)
+- [main.py:294-302](file://backend/main.py#L294-L302)
+- [main.py:74-82](file://backend/main.py#L74-L82)
+- [main.py:204-205](file://backend/main.py#L204-L205)
+- [main.py:218-256](file://backend/main.py#L218-L256)
 
 ### Strict Response Model Details
 The AnalysisResult model enforces strict API contracts:
@@ -725,7 +718,7 @@ The AnalysisResult model enforces strict API contracts:
 | reasons | list[string] | Default [] | Array of flagging reasons |
 
 **Section sources**
-- [main.py:65-73](file://backend/main.py#L65-L73)
+- [main.py:74-82](file://backend/main.py#L74-L82)
 
 ### Enhanced Threshold Enforcement System
 The defensive abstraction layer implements programmatic threshold enforcement to override LLM hallucinations:
@@ -743,4 +736,4 @@ The defensive abstraction layer implements programmatic threshold enforcement to
 - **Reasons Array Cleaning**: Filters and validates reason strings
 
 **Section sources**
-- [main.py:209-247](file://backend/main.py#L209-L247)
+- [main.py:218-256](file://backend/main.py#L218-L256)
