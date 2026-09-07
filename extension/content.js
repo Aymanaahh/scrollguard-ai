@@ -15,6 +15,9 @@
  *      paths (login, signin, signup, auth, oauth, register) are skipped
  *      without an API call — auth pages are overwhelmingly legitimate and
  *      were a leading source of false positives.
+ *   5. URL sanitizer   – Tracking query parameters (fbclid, gclid, utm_*,
+ *      …) are stripped before every backend call, keeping payloads compact
+ *      and letting the dedup Set key on the meaningful part of the URL.
  *
  * All injected CSS classes are prefixed with "sg-ai-" to prevent host-page
  * stylesheet collisions.  UI components share one dark "raven" theme
@@ -1025,11 +1028,6 @@
   function init() {
     // Brand styles + animations (idempotent, injected once per page)
     ensureStylesheet();
-
-    // Single startup status log — the only non-error console output.
-    console.log(
-      "[ScrollGuard AI] Zero-click scanner active on " + window.location.hostname
-    );
 
     // 1. Scan the main page URL itself (skip if allowlisted)
     scanMainPage();

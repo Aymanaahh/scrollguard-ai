@@ -7,6 +7,11 @@
  * this browsing session.
  * Also provides a manual "Scan Active Tab" fallback button that sends
  * the current tab URL to the backend for on-demand analysis.
+ *
+ * Both the live stats and the manual scan strip tracking query parameters
+ * (fbclid, gclid, utm_*, …) before any URL reaches the backend, and the
+ * status chip flips to "Active" as soon as a scan is dispatched — so a
+ * slow or unreachable backend never leaves the UI stuck on "Waiting".
  */
 
 document.addEventListener("DOMContentLoaded", () => {

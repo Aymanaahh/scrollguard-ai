@@ -10,6 +10,10 @@
  * CORS and Mixed Content restrictions that block content scripts and popups
  * running on HTTPS pages.
  *
+ * Every URL is sanitised before dispatch — tracking query parameters
+ * (fbclid, gclid, utm_*, …) are stripped so the backend receives compact,
+ * meaningful URLs.
+ *
  * Every backend call is wrapped in an abort-based timeout plus error guards
  * and always resolves with either the result array or a graceful fallback —
  * a timed-out request returns per-URL "Safe" results (reason: "Backend

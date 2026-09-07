@@ -1,15 +1,24 @@
 """
 ScrollGuard AI – FastAPI Detection Engine
 
+A two-stage URL threat classifier backing the ScrollGuard AI Chrome
+extension: rule-based heuristics first, then Alibaba Cloud's Qwen LLM
+(via the OpenAI-compatible DashScope API) for everything the rules
+cannot confidently clear.
+
 Endpoints:
   GET  /            → health check
   POST /analyze     → single URL + text analysis
   POST /scan_links  → batch URL analysis (array of URLs)
 
-Both analysis endpoints run the heuristic pre-filter first.
-If the heuristic score is high enough the result is returned
-immediately; otherwise the URL is forwarded to the Qwen LLM
-for deep analysis.
+Pipeline guarantees:
+  * Heuristic pre-filter — URLs flagged by the rule-based scan return
+    immediately and never consume an LLM call.
+  * Threshold enforcer   — _normalize_llm_result() overrides
+    hallucinated statuses so the reported status always matches the
+    score band (≥75 Dangerous, ≥30 Suspicious, else Safe).
+  * Concurrency cap      — a Semaphore(5) bounds simultaneous Qwen
+    calls so large batches are rate-limited, not rejected.
 """
 
 import asyncio
@@ -17,11 +26,11 @@ import json
 import os
 from typing import Literal
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
 
 from heuristics import heuristic_scan
 
@@ -213,7 +222,7 @@ def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
     """
     # 1. Extract and coerce the risk score first
     extracted_score = _coerce_score(parsed.get("score") or parsed.get("risk_score") or 0)
-    
+
     # 2. Programmatic Threshold Enforcer (Overrides LLM Hallucinations)
     if extracted_score >= 75:
         status = "Dangerous"
@@ -288,8 +297,8 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
                 ],
-                temperature=0,  # deterministic classification
-                max_tokens=150, # FORCE fast, concise JSON completion
+                temperature=0,   # deterministic classification
+                max_tokens=150,  # fast, concise JSON completion
             )
 
             raw = _strip_markdown_fences(
