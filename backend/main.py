@@ -292,7 +292,7 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
 
         try:
             completion = await client.chat.completions.create(
-                model="qwen3.8-flash",
+                model="qwen3-coder-flash",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
