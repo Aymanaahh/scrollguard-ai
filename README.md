@@ -1,4 +1,18 @@
 # 🛡️ ScrollGuard AI
+> **🚀 LIVE CLOUD BACKEND ACTIVE!**  
+> We have successfully migrated our FastAPI & Qwen LLM backend from localhost to a live production environment on Render. 
+> 
+> **Verify our Live API endpoint here:** [https://scrollguard-ai.onrender.com/docs](https://scrollguard-ai.onrender.com/docs)
+
+## 📥 How to Test the Live Extension (For Judges)
+Since our cloud backend is now active, you can test the real-time link scanning directly in your browser:
+
+1. **Download the Extension:** Go to the [Releases Tab](../../releases/latest) on the right and download `ScrollGuard_AI_Live.zip`.
+2. **Unzip the File:** Extract the folder to your computer.
+3. **Open Chrome Extensions:** Navigate to `chrome://extensions/` in your browser.
+4. **Enable Developer Mode:** Toggle the switch in the top right corner.
+5. **Load Unpacked:** Click the "Load unpacked" button at the top left and select the extracted folder.
+6. **Test it out:** Pin the extension, browse any webpage, and watch Qwen 3.8-flash detect and badge suspicious links in real-time!
 
 **Zero-Click, Real-Time AI Protection Against Phishing & Scam Links**
 
