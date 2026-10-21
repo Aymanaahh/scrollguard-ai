@@ -1,19 +1,34 @@
 # 🛡️ ScrollGuard AI
 
-**Zero-Click, Real-Time AI Protection Against Phishing & Scam Links**
+**AI-Assisted, Real-Time Screening for Suspicious Links While You Browse**
 
 > Built by **Team Raven** for the **Alibaba Cloud AI Hackathon Pakistan 2026**
 
 ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white)
 ![Chrome MV3](https://img.shields.io/badge/extension-Chrome%20Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)
 ![Qwen](https://img.shields.io/badge/AI-Alibaba%20Qwen-6C4BBB)
-![Status](https://img.shields.io/badge/status-competition%20ready-34d399)
+![Backend](https://img.shields.io/badge/backend-deployed%20on%20Render-46E3B7?logo=render&logoColor=white)
+![Release](https://img.shields.io/badge/GitHub-release-181717?logo=github&logoColor=white)
+![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-coming%20soon-FBBC04?logo=googlechrome&logoColor=black)
 
-ScrollGuard AI is a browser security extension paired with an AI-powered detection
-backend. It automatically scans **every link on every page you visit** — including
-dynamically loaded content in social-media feeds — and flags phishing links, fake
-government schemes (BISP/Ehsaas scams), fraudulent lotteries, and
-credential-harvesting pages **directly in the page, in real time, with zero clicks**.
+ScrollGuard AI is a Chrome Manifest V3 extension backed by a deployed FastAPI service
+and Alibaba Cloud Qwen. It checks eligible links as they appear on supported pages,
+including dynamically loaded feed content, and surfaces risk indicators for links
+that may be phishing or scams. The goal is to help people pause and assess suspicious
+links before deciding whether to open them.
+
+> **Project status:** The backend is deployed on Render and a GitHub release is available.
+> Chrome Web Store publication is planned; until the listing is live, install the extension
+> manually using the instructions below. ScrollGuard AI is a prototype and is not a
+> replacement for browser security features or careful judgment.
+
+## 🔗 Project Links
+
+- **Live backend health check:** https://scrollguard-ai.onrender.com/
+- **Interactive API documentation:** https://scrollguard-ai.onrender.com/docs
+- **GitHub repository:** https://github.com/Aymanaahh/scrollguard-ai
+- **GitHub releases:** https://github.com/Aymanaahh/scrollguard-ai/releases
+- **Chrome Web Store:** Coming soon — a public listing is not available yet.
 
 ---
 
@@ -40,10 +55,10 @@ never do.
 
 ## 💡 Our Solution
 
-ScrollGuard AI inverts the model: **the user never has to act**. A
+ScrollGuard AI aims to reduce the need for manual link checking. A
 `MutationObserver` watches the live DOM, so every link that appears while you
-scroll — including infinite-scroll feeds on Facebook, X, Instagram, Reddit, and
-WhatsApp Web — is validated, sanitized, batched, and classified in the background
+scroll — including supported dynamically loaded feeds on sites such as Facebook, X, Instagram, Reddit, and
+WhatsApp Web — can be validated, sanitized, batched, and classified in the background
 by a two-stage engine (rule-based heuristics, then Alibaba Cloud's Qwen LLM).
 Threats are surfaced **inline**, exactly where the dangerous link sits, as
 colored outlines, clickable badges, and full-screen risk modals — plus a
@@ -54,15 +69,15 @@ session-scoped **Flagged Threat History** in the popup.
 ## ✨ Key Features
 
 ### 1. Real-Time Feed Scanning (Zero-Click)
-Scanning starts automatically on page load — no button, no configuration. A
-`MutationObserver` attached to `document.body` catches every `<a>` tag injected
+Scanning starts automatically on matching pages where the extension has permission. A
+`MutationObserver` attached to `document.body` checks eligible `<a>` elements injected
 after initial load; mutations are debounced at 300 ms and deduplicated
-(`Set` for URLs, `WeakSet` for elements), so each unique link triggers exactly
-one API call per session. The current page URL itself is checked first — if
+(`Set` for URLs, `WeakSet` for elements), to reduce duplicate work, so each unique link is intended to trigger at most
+one API call per session. The current page URL is also checked — if
 *you* are on a threat page, a full-width warning banner is pinned to the top.
 
 ### 2. Tracking-Parameter Stripping (URL Sanitizer)
-Before any URL is sent to the backend, marketing tracking parameters
+Before a URL is sent to the backend, configured marketing tracking parameters
 (`fbclid`, `gclid`, `msclkid`, `utm_source`, `utm_medium`, `utm_campaign`,
 `utm_term`, `utm_content`, and more) are parsed out and removed. The base
 **origin and path are preserved** so threat detection stays accurate, while
@@ -96,7 +111,7 @@ per-URL "evaluation delayed" fallbacks — never an error wall, never an unhandl
 rejection, and never Chrome's extension error badge.
 
 ### 7. False-Positive Filters (Client-Side, Pre-Request)
-Three filters run **before** any request is made, saving API quota and
+Three filters run **before** a request is made, helping save API quota and
 eliminating noise: a 20-domain trusted allowlist (google.com, github.com, …
 plus subdomains), an auth-path skip (`login`, `signin`, `signup`, `auth`,
 `oauth`, `register`), and scheme/same-origin rejection (`javascript:`,
@@ -241,15 +256,17 @@ python main.py
 ```
 
 Verify it is live:
-- Health check → `http://127.0.0.1:8000/`
-- Interactive API docs → `http://127.0.0.1:8000/docs`
+- Health check → `https://scrollguard-ai.onrender.com/`
+- Interactive API docs → `https://scrollguard-ai.onrender.com/docs`
 
-### Step 2 — Load the Extension into Chrome
+### Step 2 — Install the Extension Manually (Before Chrome Web Store Release)
+
+The Chrome Web Store listing is planned but is not live yet. Until it is published, you can test the released source manually:
 
 1. Open **`chrome://extensions/`** (or `edge://extensions/` on Edge).
 2. Toggle **Developer mode** on (top-right corner).
 3. Click **Load unpacked**.
-4. Select the **`scrollguard-ai/extension`** folder.
+4. Select the repository's **`extension/`** folder (the folder containing `manifest.json`).
 5. Pin **ScrollGuard AI** to your toolbar.
 
 ### Step 3 — Verify Protection Is Active
@@ -261,7 +278,7 @@ on-demand verdict on the current page.
 
 ### (Optional) Point the Extension at a Cloud Backend
 
-By default the extension targets `http://127.0.0.1:8000/scan_links`. To use a
+By default the extension targets `https://scrollguard-ai.onrender.com/scan_links`. To use a
 deployed backend instead:
 
 1. Open `chrome://extensions/` and click the **service worker** link under
@@ -341,6 +358,22 @@ scrollguard-ai/
 
 ---
 
+## 🔐 Privacy & Data Handling
+
+ScrollGuard AI sends eligible, sanitized link information to its configured backend for
+analysis. The backend may then send the information needed for analysis to Alibaba Cloud
+Qwen through the DashScope API. Do not assume that a link is private simply because it
+appears in a feed: URLs can contain personal or session-related information.
+
+- Configured tracking parameters are removed before eligible URLs are submitted, but this
+  should not be treated as a guarantee that every sensitive value is removed.
+- Do not include API keys or secrets in the extension, repository, screenshots, or public
+  issues. The DashScope API key belongs in the backend environment configuration.
+- Review the backend host and the privacy policies of the services used before using the
+  extension with sensitive links.
+- ScrollGuard AI provides risk assessments, not certainty. A “Safe” result does not
+  guarantee that a page is legitimate, and a suspicious result may be a false positive.
+
 ## ⚠️ Known Limitations
 
 - **Link-only scanning** — the extension analyzes `<a>` `href` attributes, not
@@ -360,6 +393,7 @@ scrollguard-ai/
 
 ## 🔭 Roadmap
 
+- **Chrome Web Store publication** — prepare the store listing, privacy disclosures, permissions justification, and review submission.
 - **Phase 2 — WhatsApp / Telegram forwarding bot**: forward any suspicious
   message or link to a bot running the same detection pipeline and receive an
   instant verdict — extending protection to the platforms where most scam
@@ -371,6 +405,10 @@ scrollguard-ai/
   user-configurable allowlists and heuristic sensitivity.
 
 ---
+
+## 📦 Releases & Distribution
+
+Use the [GitHub Releases page](https://github.com/Aymanaahh/scrollguard-ai/releases) to find tagged project releases. The Chrome Web Store listing will be linked here once it has been published and approved.
 
 ## 🐦 Team Raven
 

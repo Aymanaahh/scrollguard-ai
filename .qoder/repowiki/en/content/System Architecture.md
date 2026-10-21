@@ -367,7 +367,7 @@ Popup["Popup<br/>popup.js"] --> SW
 
 ## Troubleshooting Guide
 - **Backend not responding**: Ensure Uvicorn is running on port 8000 and .env file contains valid DASHSCOPE_API_KEY
-- **CORS errors**: Verify extension can reach http://127.0.0.1:8000 and CORS middleware is enabled
+- **CORS errors**: Verify extension can reach https://scrollguard-ai.onrender.com and CORS middleware is enabled
 - **AI parsing errors**: Check system prompt formatting and model behavior if non-JSON responses occur
 - **Extension connectivity**: Popup displays error messages if backend connection fails; verify network settings
 - **Content script issues**: Check browser console for JavaScript errors and ensure content script loads properly

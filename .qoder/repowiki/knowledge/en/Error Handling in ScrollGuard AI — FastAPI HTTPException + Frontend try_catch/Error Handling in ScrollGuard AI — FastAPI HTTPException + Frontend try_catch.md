@@ -38,7 +38,7 @@ The repository uses a minimal, framework-native error handling approach with no 
 
 ### Frontend (`popup.js`)
 
-1. **Network error path**: The fetch to `http://127.0.0.1:8000/analyze` is wrapped in `try/catch`. On failure, `alert("Error connecting to backend server. Make sure Uvicorn is running!")` is shown to the user.
+1. **Network error path**: The fetch to `https://scrollguard-ai.onrender.com/analyze` is wrapped in `try/catch`. On failure, `alert("Error connecting to backend server. Make sure Uvicorn is running!")` is shown to the user.
 2. **UI state recovery**: The `finally` block always restores the button text and re-enables it, ensuring the UI remains usable after both success and failure paths.
 3. **No structured error display**: Error details from the backend response body are not surfaced to the user — only a generic alert is shown.
 4. **Content script (`content.js`)**: Contains no network calls or async operations; errors here would be silent JS exceptions with no user-visible handling.

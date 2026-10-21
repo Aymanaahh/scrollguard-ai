@@ -19,7 +19,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 # Resolve dataset path relative to this script
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_FILE = os.path.join(_SCRIPT_DIR, "scam_dataset.json")
-API_URL = "http://127.0.0.1:8000/scan_links"
+API_URL = "https://scrollguard-ai.onrender.com/scan_links"
 
 
 def load_dataset():

@@ -16,7 +16,7 @@ import requests
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_FILE = os.path.join(_SCRIPT_DIR, "scam_dataset.json")
-API_URL = "http://127.0.0.1:8000/scan_links"
+API_URL = "https://scrollguard-ai.onrender.com/scan_links"
 
 
 def main():

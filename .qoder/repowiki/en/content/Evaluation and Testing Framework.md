@@ -476,7 +476,7 @@ The enhanced ScrollGuard AI evaluation framework provides a comprehensive mechan
 ## Appendices
 
 ### Running the Enhanced Evaluation
-- Start the backend server on http://127.0.0.1:8000.
+- Start the backend server on https://scrollguard-ai.onrender.com.
 - Execute the full evaluation script for comprehensive metrics: `python evaluate_engine.py`
 - Execute the quick test script for rapid validation: `python test_scan.py`
 - Review printed per-sample results, classification reports, and confusion matrices.

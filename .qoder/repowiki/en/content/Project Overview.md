@@ -206,7 +206,7 @@ python -m uvicorn main:app --reload --port 8000
 5. Protection begins automatically - visit any page to see real-time scanning in action
 
 ### Configuration
-By default, the extension targets `http://127.0.0.1:8000/scan_links` for local development. To use a cloud-deployed backend:
+By default, the extension targets `https://scrollguard-ai.onrender.com/scan_links` for local development. To use a cloud-deployed backend:
 
 ```javascript
 // Run in extension DevTools console

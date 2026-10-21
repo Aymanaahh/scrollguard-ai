@@ -104,7 +104,7 @@ Ext->>Ext : Render status tag, score, explanation
 - Install dependencies: fastapi, uvicorn, openai, python-dotenv, pydantic, requests.
 - Configure environment: Create a .env file in the backend directory with DASHSCOPE_API_KEY.
 - Launch server: Run the Uvicorn server on port 8000.
-- Verify: Access interactive docs at http://127.0.0.1:8000/docs.
+- Verify: Access interactive docs at https://scrollguard-ai.onrender.com/docs.
 
 Important behaviors:
 - The server requires at least one of url or text; otherwise it returns a 400 error.
@@ -140,7 +140,7 @@ What happens:
 - [content.js:101-253](file://extension/content.js#L101-L253)
 
 ### Running the Evaluation Benchmark (Optional)
-- Ensure the backend is running on http://127.0.0.1:8000.
+- Ensure the backend is running on https://scrollguard-ai.onrender.com.
 - Run the evaluation script inside the backend directory.
 - The script reads scam_dataset.json and reports accuracy against expected statuses.
 
@@ -192,7 +192,7 @@ E["content.js"] --> F["Local heuristics<br/>URL/text patterns"]
 Common issues and fixes:
 - Connection problems between extension and backend
   - Symptom: Popup shows an alert about connecting to the backend server.
-  - Fix: Ensure the Uvicorn server is running on http://127.0.0.1:8000 and accessible from the browser.
+  - Fix: Ensure the Uvicorn server is running on https://scrollguard-ai.onrender.com and accessible from the browser.
   - Reference: [popup.js:16-45](file://extension/popup.js#L16-L45)
 
 - API key configuration errors

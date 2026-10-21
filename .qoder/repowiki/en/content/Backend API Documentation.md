@@ -460,7 +460,7 @@ The evaluation script has been optimized for the new batch endpoint with concurr
 - Uses sklearn metrics for classification_report and confusion_matrix analysis
 
 Usage:
-- Ensure the FastAPI server is running locally at http://127.0.0.1:8000
+- Ensure the FastAPI server is running locally at https://scrollguard-ai.onrender.com
 - Execute the evaluation script from the backend directory
 
 Data model in dataset:
@@ -597,7 +597,7 @@ Common issues and resolutions:
   - Resolution: Verify max_tokens=150 setting is working correctly and consider adjusting timeout settings
 
 Debugging with FastAPI docs:
-- Interactive API documentation is available at http://127.0.0.1:8000/docs
+- Interactive API documentation is available at https://scrollguard-ai.onrender.com/docs
 - Use it to explore endpoints, test requests, and inspect response schemas directly in the browser
 - **Enhanced**: Test the /scan_links endpoint with batch URL processing capabilities and observe concurrent processing behavior
 - **Enhanced**: Verify strict response model validation and standardized error handling
@@ -618,7 +618,7 @@ The ScrollGuard AI backend provides a lightweight, secure, and extensible REST A
 ## Appendices
 
 ### Client Implementation Guidelines
-- Base URL: http://127.0.0.1:8000 (or your deployed host)
+- Base URL: https://scrollguard-ai.onrender.com (or your deployed host)
 - Endpoints:
   - GET /: Health check
   - POST /analyze: Single URL/text analysis with heuristic pre-screening

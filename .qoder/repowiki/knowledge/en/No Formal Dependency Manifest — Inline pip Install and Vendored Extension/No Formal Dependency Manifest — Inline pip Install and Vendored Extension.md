@@ -28,7 +28,7 @@ This repository does **not** use a formal Python dependency management tool (no 
 
 - **Flat backend layout**: All Python source lives directly under `backend/`; there is no virtual environment committed to the repo, and no vendored `site-packages` directory. Users create their own environment and run `pip install` manually per the README.
 - **External service dependency**: The only runtime third-party SDK is Alibaba Cloud's DashScope OpenAI-compatible client (`openai` package configured with `base_url="https://dashscope-intl.aliuncs.com/compatible-mode/v1"`), authenticated via the `DASHSCOPE_API_KEY` environment variable loaded from `.env`.
-- **Extension is self-contained**: The browser extension makes HTTP calls against the local FastAPI server at `http://127.0.0.1:8000` using the built-in `fetch` API; it declares no external JS libraries.
+- **Extension is self-contained**: The browser extension makes HTTP calls against the local FastAPI server at `https://scrollguard-ai.onrender.com` using the built-in `fetch` API; it declares no external JS libraries.
 
 ## Conventions and constraints
 

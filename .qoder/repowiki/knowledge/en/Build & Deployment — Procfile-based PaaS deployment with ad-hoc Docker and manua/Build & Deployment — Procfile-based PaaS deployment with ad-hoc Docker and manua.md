@@ -36,6 +36,6 @@ The project has no formal build system (no Makefile, no `pyproject.toml`, no `re
 
 - No dependency manifest file exists; dependencies are installed inline via `pip install fastapi uvicorn openai python-dotenv pydantic requests` (documented in README). This means there is no reproducible lockstep between environments beyond pinning versions externally.
 - Secrets are not baked into the image or codebase; `DASHSCOPE_API_KEY` must be supplied as an environment variable at runtime (enforced by a `RuntimeError` if missing in `main.py`).
-- The extension's host permission `http://127.0.0.1:8000/*` hard-codes the default local backend URL; switching to a cloud backend requires setting `sg_backendUrl` via `chrome.storage.local` at runtime (documented in README).
+- The extension's host permission `https://scrollguard-ai.onrender.com/*` hard-codes the default local backend URL; switching to a cloud backend requires setting `sg_backendUrl` via `chrome.storage.local` at runtime (documented in README).
 - There is no automated test harness invoked by a build step; evaluation is triggered manually via `python evaluate_engine.py` against `scam_dataset.json`.
 - Versioning: the FastAPI app declares `version="2.0.0"` in its declaration, and the extension declares `"version": "1.0"` in `manifest.json`; these are independent and not synchronized by any script.

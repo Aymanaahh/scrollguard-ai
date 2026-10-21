@@ -156,7 +156,7 @@ Parse --> |Valid| Return["Return structured result"]
 
 ### Browser Extension
 - Manifest V3 extension with permissions for active tab, scripting, and storage.
-- Enhanced host permissions including local backend testing at http://127.0.0.1:8000/* for development workflows.
+- Enhanced host permissions including local backend testing at https://scrollguard-ai.onrender.com/* for development workflows.
 - Popup UI triggers analysis by posting to the backend's /analyze endpoint.
 - Displays status, risk score, and explanation returned by the backend.
 
@@ -250,7 +250,7 @@ Common issues and resolutions:
 Operational checks:
 - Health check: Use GET / to verify the service is up.
 - Evaluate script: Run evaluation to validate integration with the backend and LLM.
-- Local development: Test with http://127.0.0.1:8000/* permissions enabled.
+- Local development: Test with https://scrollguard-ai.onrender.com/* permissions enabled.
 
 **Section sources**
 - [backend/main.py:31-33](file://backend/main.py#L31-L33)
@@ -321,7 +321,7 @@ Recommended steps:
   - Restrict allow_origins to known extension origins or domains.
   - Limit allowed methods and headers to the minimum required.
   - Enable credentials only when necessary.
-- Development workflow: Local backend testing enabled with http://127.0.0.1:8000/* permissions.
+- Development workflow: Local backend testing enabled with https://scrollguard-ai.onrender.com/* permissions.
 
 **Section sources**
 - [backend/main.py:44-50](file://backend/main.py#L44-L50)
@@ -380,7 +380,7 @@ Recommended steps:
 - Development:
   - Local .env with DASHSCOPE_API_KEY.
   - CORS allows all origins for ease of testing.
-  - Local backend testing enabled with http://127.0.0.1:8000/* permissions.
+  - Local backend testing enabled with https://scrollguard-ai.onrender.com/* permissions.
 - Staging:
   - Restricted CORS origins matching staging extension builds.
   - Secrets injected via platform secret store.

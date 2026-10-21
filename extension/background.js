@@ -34,7 +34,7 @@
  * console on the service-worker page and run:
  *   chrome.storage.local.set({ sg_backendUrl: "https://your-app.onrender.com/scan_links" })
  */
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000/scan_links";
+const DEFAULT_BACKEND_URL = "https://scrollguard-ai.onrender.com/scan_links";
 
 /**
  * Hard timeout for backend requests.  30 s gives slow multi-URL Qwen LLM
