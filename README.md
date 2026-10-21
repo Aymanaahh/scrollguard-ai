@@ -12,7 +12,7 @@ Since our cloud backend is now active, you can test the real-time link scanning 
 3. **Open Chrome Extensions:** Navigate to `chrome://extensions/` in your browser.
 4. **Enable Developer Mode:** Toggle the switch in the top right corner.
 5. **Load Unpacked:** Click the "Load unpacked" button at the top left and select the extracted folder.
-6. **Test it out:** Pin the extension, browse any webpage, and watch Qwen 3.8-flash detect and badge suspicious links in real-time!
+6. **Test it out:** Pin the extension, browse any webpage, and watch Qwen Model detect and badge suspicious links in real-time!
 
 **Zero-Click, Real-Time AI Protection Against Phishing & Scam Links**
 
