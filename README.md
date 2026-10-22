@@ -428,5 +428,6 @@ Use the [GitHub Releases page](https://github.com/Aymanaahh/scrollguard-ai/relea
 
 *Alibaba Cloud AI Hackathon Pakistan 2026*
 
-- **Member A** — Backend Architecture & AI API Integration Lead
-- **Member B** — Frontend Extension & Dataset Benchmarking Lead
+- **Ayesha - Team Lead** — Frontend Extension & Dataset Benchmarking Lead
+- **Umm E Ayman** — Backend Architecture & AI API Integration Lead
+
