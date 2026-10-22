@@ -10,6 +10,8 @@ Endpoints:
   GET  /            → health check
   POST /analyze     → single URL + text analysis
   POST /scan_links  → batch URL analysis (array of URLs)
+  GET  /webhook/whatsapp → WhatsApp Meta verification
+  POST /webhook/whatsapp → Inbound WhatsApp message processing
 
 Pipeline guarantees:
   * Heuristic pre-filter — URLs flagged by the rule-based scan return
@@ -48,9 +50,11 @@ client = AsyncOpenAI(
     api_key=API_KEY,
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
+
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
-WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "scrollguard_ai1317")
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "scrollguard_secret_123")
+
 # ── FastAPI app ──────────────────────────────────────────────────────────────
 
 app = FastAPI(title="ScrollGuard AI Engine", version="2.1.0")
@@ -224,14 +228,11 @@ def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
     Map loosely-typed LLM output onto the strict response model.
     Includes a Defensive Abstraction Layer to guarantee threshold enforcement.
     """
-    # 1. Extract and coerce the risk score first
     extracted_score = _coerce_score(parsed.get("score") or parsed.get("risk_score") or 0)
 
-    # 2. Programmatic Threshold Enforcer (Overrides LLM Hallucinations)
     if extracted_score >= 75:
         status = "Dangerous"
     elif extracted_score >= 30:
-        # If the model marked it safe but gave it a high score, force it to Suspicious
         raw_status = str(parsed.get("status") or "Suspicious").strip().capitalize()
         status = "Suspicious" if raw_status not in _VALID_STATUSES else raw_status
         if status == "Safe":
@@ -241,7 +242,6 @@ def _normalize_llm_result(parsed: dict, url: str) -> AnalysisResult:
         if status not in _VALID_STATUSES:
             status = "Safe"
 
-    # 3. Clean up reasons array
     raw_reasons = parsed.get("reasons")
     if raw_reasons is None:
         raw_reasons = parsed.get("flagged_reasons") or []
@@ -272,10 +272,9 @@ def _strip_markdown_fences(raw: str) -> str:
 async def _analyze_single_url(url: str, platform: str = "Browser Extension",
                                text: str = "") -> AnalysisResult:
     """
-    Analyze one URL.  Runs the heuristic first; if it flags the URL the
-    LLM is never called.  Otherwise delegates to Qwen.
+    Analyze one URL. Runs the heuristic first; if it flags the URL the
+    LLM is never called. Otherwise delegates to Qwen.
     """
-    # Heuristic pre-filter
     h_status, h_score, h_reasons = heuristic_scan(url)
     if h_status != "Safe":
         return AnalysisResult(
@@ -286,7 +285,6 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
             reasons=list(h_reasons),
         )
 
-    # LLM analysis (rate-limited via semaphore)
     async with _semaphore:
         user_payload = (
             f"Platform: {platform}\n"
@@ -301,8 +299,8 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_payload},
                 ],
-                temperature=0,   # deterministic classification
-                max_tokens=150,  # fast, concise JSON completion
+                temperature=0,
+                max_tokens=150,
             )
 
             raw = _strip_markdown_fences(
@@ -310,7 +308,6 @@ async def _analyze_single_url(url: str, platform: str = "Browser Extension",
             )
             parsed = json.loads(raw)
 
-            # Normalize field names / types coming from the LLM
             return _normalize_llm_result(parsed, url)
 
         except json.JSONDecodeError:
@@ -371,21 +368,11 @@ async def scan_links(batch: URLBatch):
     return await asyncio.gather(*tasks)
 
 
-# ── Uvicorn entry point (cloud & local) ─────────────────────────────────────
+# ── WhatsApp Bot Webhooks ───────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=os.getenv("ENV", "production") != "production",
-    )
-    # Webhook Verification (Meta sends a GET request here)
 @app.get("/webhook/whatsapp")
 async def verify_whatsapp_webhook(request: Request):
+    """Meta webhook verification endpoint."""
     params = request.query_params
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
@@ -395,9 +382,10 @@ async def verify_whatsapp_webhook(request: Request):
         return PlainTextResponse(content=challenge, status_code=200)
     raise HTTPException(status_code=403, detail="Verification token mismatch")
 
-# Message Receiver (Meta sends incoming WhatsApp messages here via POST)
+
 @app.post("/webhook/whatsapp")
 async def handle_whatsapp_message(request: Request):
+    """Receives user messages from WhatsApp and replies via Qwen LLM."""
     payload = await request.json()
     try:
         entry = payload.get("entry", [])[0]
@@ -411,27 +399,55 @@ async def handle_whatsapp_message(request: Request):
             user_text = msg.get("text", {}).get("body", "")
 
             if user_text:
-                # Send text to Qwen LLM analysis function
-                analysis_result = await analyze_threat_with_qwen(user_text)
-                
-                # Send response back to user's WhatsApp
-                await send_whatsapp_reply(sender_id, analysis_result)
+                url_to_analyze = user_text if user_text.startswith("http") else ""
+                res = await _analyze_single_url(
+                    url=url_to_analyze, platform="WhatsApp Bot", text=user_text
+                )
+
+                formatted_reply = (
+                    f"🛡️ *ScrollGuard AI Security Report*\n\n"
+                    f"• *Status:* {res.status}\n"
+                    f"• *Risk Score:* {res.score}/100\n"
+                    f"• *Analysis:* {res.explanation}"
+                )
+                if res.reasons:
+                    formatted_reply += "\n\n*Key Flags:*\n" + "\n".join(
+                        [f"- {r}" for r in res.reasons]
+                    )
+
+                await send_whatsapp_reply(sender_id, formatted_reply)
     except Exception as e:
-        print(f"Error handling message: {e}")
+        print(f"Error handling WhatsApp message: {e}")
 
     return {"status": "ok"}
 
+
 async def send_whatsapp_reply(recipient_id: str, message_text: str):
-    url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
+    """Sends a text message reply back through the Meta WhatsApp Graph API."""
+    url = f"[https://graph.facebook.com/v21.0/](https://graph.facebook.com/v21.0/){WHATSAPP_PHONE_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     data = {
         "messaging_product": "whatsapp",
         "to": recipient_id,
         "type": "text",
-        "text": {"body": message_text}
+        "text": {"body": message_text},
     }
     async with httpx.AsyncClient() as client:
         await client.post(url, headers=headers, json=data)
+
+
+# ── Uvicorn entry point (cloud & local) ─────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=os.getenv("ENV", "production") != "production",
+    )
