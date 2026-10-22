@@ -24,10 +24,12 @@ Pipeline guarantees:
 import asyncio
 import json
 import os
+import httpx
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
@@ -46,7 +48,9 @@ client = AsyncOpenAI(
     api_key=API_KEY,
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
-
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "scrollguard_ai1317")
 # ── FastAPI app ──────────────────────────────────────────────────────────────
 
 app = FastAPI(title="ScrollGuard AI Engine", version="2.1.0")
@@ -379,3 +383,55 @@ if __name__ == "__main__":
         port=port,
         reload=os.getenv("ENV", "production") != "production",
     )
+    # Webhook Verification (Meta sends a GET request here)
+@app.get("/webhook/whatsapp")
+async def verify_whatsapp_webhook(request: Request):
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+
+    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+        return PlainTextResponse(content=challenge, status_code=200)
+    raise HTTPException(status_code=403, detail="Verification token mismatch")
+
+# Message Receiver (Meta sends incoming WhatsApp messages here via POST)
+@app.post("/webhook/whatsapp")
+async def handle_whatsapp_message(request: Request):
+    payload = await request.json()
+    try:
+        entry = payload.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages", [])
+
+        if messages:
+            msg = messages[0]
+            sender_id = msg.get("from")
+            user_text = msg.get("text", {}).get("body", "")
+
+            if user_text:
+                # Send text to Qwen LLM analysis function
+                analysis_result = await analyze_threat_with_qwen(user_text)
+                
+                # Send response back to user's WhatsApp
+                await send_whatsapp_reply(sender_id, analysis_result)
+    except Exception as e:
+        print(f"Error handling message: {e}")
+
+    return {"status": "ok"}
+
+async def send_whatsapp_reply(recipient_id: str, message_text: str):
+    url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": recipient_id,
+        "type": "text",
+        "text": {"body": message_text}
+    }
+    async with httpx.AsyncClient() as client:
+        await client.post(url, headers=headers, json=data)
