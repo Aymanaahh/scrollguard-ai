@@ -396,10 +396,17 @@ async def handle_whatsapp_message(request: Request):
         if messages:
             msg = messages[0]
             sender_id = msg.get("from")
-            user_text = msg.get("text", {}).get("body", "")
+            user_text = msg.get("text", {}).get("body", "").strip()
 
             if user_text:
-                url_to_analyze = user_text if user_text.startswith("http") else ""
+                # Prepend https:// if user sent a raw domain string like "google.com"
+                if user_text.startswith(("http://", "https://")):
+                    url_to_analyze = user_text
+                elif "." in user_text and " " not in user_text:
+                    url_to_analyze = f"https://{user_text}"
+                else:
+                    url_to_analyze = ""
+
                 res = await _analyze_single_url(
                     url=url_to_analyze, platform="WhatsApp Bot", text=user_text
                 )
@@ -417,16 +424,25 @@ async def handle_whatsapp_message(request: Request):
 
                 await send_whatsapp_reply(sender_id, formatted_reply)
     except Exception as e:
+        import traceback
         print(f"Error handling WhatsApp message: {e}")
+        traceback.print_exc()
 
     return {"status": "ok"}
 
 
 async def send_whatsapp_reply(recipient_id: str, message_text: str):
     """Sends a text message reply back through the Meta WhatsApp Graph API."""
-    url = f"[https://graph.facebook.com/v21.0/](https://graph.facebook.com/v21.0/){WHATSAPP_PHONE_ID}/messages"
+    phone_id = (WHATSAPP_PHONE_ID or "").strip().strip('"').strip("'")
+    token = (WHATSAPP_TOKEN or "").strip().strip('"').strip("'")
+
+    if not phone_id or not token:
+        print("Error: WHATSAPP_PHONE_ID or WHATSAPP_TOKEN is missing in Render environment variables.")
+        return
+
+    url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
     data = {
@@ -436,9 +452,8 @@ async def send_whatsapp_reply(recipient_id: str, message_text: str):
         "text": {"body": message_text},
     }
     async with httpx.AsyncClient() as client:
-        await client.post(url, headers=headers, json=data)
-
-
+        resp = await client.post(url, headers=headers, json=data)
+        print(f"Meta Graph API Response [{resp.status_code}]: {resp.text}")
 # ── Uvicorn entry point (cloud & local) ─────────────────────────────────────
 
 if __name__ == "__main__":
